@@ -1,35 +1,29 @@
 """
-Candor AI — Groq conversation engine.
-
-This module contains the core chat logic. It holds the system prompt,
-manages the message history structure, and streams completions from
-the Groq API (llama-3.3-70b-versatile).
-
-Usage:
-    from candor_ai import chat
-
-    reply, updated_history = await chat(
-        user_message="i don't know what i want anymore",
-        history=[]           # pass previous history on subsequent calls
-    )
+Candor AI Groq conversation configuration.
 """
 
-import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 from groq import AsyncGroq
 
-# Load .env before anything reads GROQ_API_KEY
+load_dotenv(Path(__file__).with_name(".env"))
 load_dotenv()
 
-# ── Groq client (reads GROQ_API_KEY from env automatically) ──────────
-client = AsyncGroq()
+_client: AsyncGroq | None = None
 
-# ── Model configuration ──────────────────────────────────────────────
+
+def get_client() -> AsyncGroq:
+    global _client
+    if _client is None:
+        _client = AsyncGroq()
+    return _client
+
+
 MODEL = "llama-3.3-70b-versatile"
 TEMPERATURE = 0.7
 MAX_COMPLETION_TOKENS = 200
 
-# ── Candor system prompt — DO NOT MODIFY ─────────────────────────────
 SYSTEM_PROMPT = """\
 You are Candor.
 
@@ -44,7 +38,7 @@ BEHAVIOR
 
 * respond simply
 * reflect what the user is saying
-* sometimes ask a question, sometimes don’t
+* sometimes ask a question, sometimes don't
 * allow pauses
 * do not rush the conversation
 
@@ -52,12 +46,12 @@ BEHAVIOR
 
 RULES
 
-* keep responses short (1–3 sentences)
+* keep responses short (1-3 sentences)
 * use lowercase only
 * no advice unless explicitly asked
 * no explanations
 * no therapist language
-* no generic phrases like “i understand” or “that’s valid”
+* no generic phrases like "i understand" or "that's valid"
 
 ---
 
@@ -95,7 +89,7 @@ okay. what do you want to talk about?
 
 TOPIC HANDLING
 
-* if user changes topic → follow immediately
+* if user changes topic -> follow immediately
 * do not question the shift
 * do not pull them back
 
@@ -112,36 +106,13 @@ async def chat(
     user_message: str,
     history: list[dict] | None = None,
 ) -> tuple[str, list[dict]]:
-    """
-    Send a user message to Candor via Groq and stream back the reply.
-
-    Parameters
-    ----------
-    user_message : str
-        The latest message from the user.
-    history : list[dict], optional
-        Previous conversation turns. Each dict has ``role`` and ``content``
-        keys. Do **not** include the system prompt — it is prepended
-        automatically every call.
-
-    Returns
-    -------
-    tuple[str, list[dict]]
-        (assistant_reply, updated_history)
-        The full streamed reply and the history list with both the
-        user message and assistant reply appended.
-    """
     if history is None:
         history = []
 
-    # Append user turn
     history.append({"role": "user", "content": user_message})
-
-    # Build the messages payload — system prompt always first
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
 
-    # Stream completion from Groq
-    stream = await client.chat.completions.create(
+    stream = await get_client().chat.completions.create(
         model=MODEL,
         messages=messages,
         temperature=TEMPERATURE,
@@ -149,7 +120,6 @@ async def chat(
         stream=True,
     )
 
-    # Collect streamed chunks
     reply_parts: list[str] = []
     async for chunk in stream:
         delta = chunk.choices[0].delta
@@ -157,8 +127,5 @@ async def chat(
             reply_parts.append(delta.content)
 
     full_reply = "".join(reply_parts)
-
-    # Append assistant turn
     history.append({"role": "assistant", "content": full_reply})
-
     return full_reply, history

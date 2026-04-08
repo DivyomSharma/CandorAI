@@ -1,30 +1,35 @@
 """
-Candor Analysis Engine — background user understanding.
-
-Runs silently after every ~10 messages. Never interrupts chat.
-Infers traits from tone, not explicit statements.
+Candor analysis engine for background user understanding.
 """
 
 import json
 import logging
-from groq import AsyncGroq
-from dotenv import load_dotenv
+from pathlib import Path
 
+from dotenv import load_dotenv
+from groq import AsyncGroq
+
+load_dotenv(Path(__file__).with_name(".env"))
 load_dotenv()
 
 logger = logging.getLogger("candor.analysis")
 
-client = AsyncGroq()
-
 MODEL = "llama-3.3-70b-versatile"
+_client: AsyncGroq | None = None
 
-# ── Analysis prompt ───────────────────────────────────────────────────
+
+def get_client() -> AsyncGroq:
+    global _client
+    if _client is None:
+        _client = AsyncGroq()
+    return _client
+
 
 ANALYSIS_PROMPT = """\
 You are a silent observer analyzing a conversation.
 
 Your job: infer psychological traits from the user's messages.
-Do NOT use explicit statements — infer from tone, phrasing, patterns.
+Do NOT use explicit statements - infer from tone, phrasing, patterns.
 
 Be conservative. If unsure, use "unknown".
 Do NOT hallucinate traits.
@@ -55,73 +60,42 @@ Return ONLY the JSON object. No explanation. No markdown.\
 
 
 async def analyze_user(history: list[dict]) -> dict:
-    """
-    Analyze a conversation to infer user traits.
-
-    Parameters
-    ----------
-    history : list[dict]
-        Conversation history (role + content dicts).
-        Should have at least 8 messages to produce meaningful analysis.
-
-    Returns
-    -------
-    dict
-        Trait analysis matching the schema above.
-    """
-    # Only analyze user messages for trait inference
-    user_messages = [m for m in history if m.get("role") == "user"]
-
+    user_messages = [message for message in history if message.get("role") == "user"]
     if len(user_messages) < 4:
         return {}
 
-    # Build context — show full conversation so AI has context
     messages = [
-        {"role": "system", "content": ANALYSIS_PROMPT},
-        {
-            "role": "user",
-            "content": "Analyze the following conversation and return the trait JSON:\n\n"
-            + "\n".join(
-                f"{m['role']}: {m['content']}" for m in history
-            ),
-        },
+      {"role": "system", "content": ANALYSIS_PROMPT},
+      {
+          "role": "user",
+          "content": "Analyze the following conversation and return the trait JSON:\n\n"
+          + "\n".join(f"{message['role']}: {message['content']}" for message in history),
+      },
     ]
 
     try:
-        completion = await client.chat.completions.create(
+        completion = await get_client().chat.completions.create(
             model=MODEL,
             messages=messages,
-            temperature=0.3,  # low temp for consistent analysis
+            temperature=0.3,
             max_completion_tokens=400,
             stream=False,
         )
 
-        raw = completion.choices[0].message.content or ""
-
-        # Extract JSON from response (handle markdown wrapping)
-        raw = raw.strip()
+        raw = (completion.choices[0].message.content or "").strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
             raw = raw.rsplit("```", 1)[0]
-        raw = raw.strip()
-
-        traits = json.loads(raw)
-        return traits
-
-    except json.JSONDecodeError as e:
-        logger.error("Analysis returned invalid JSON: %s", e)
+        return json.loads(raw.strip())
+    except json.JSONDecodeError as exc:
+        logger.error("Analysis returned invalid JSON: %s", exc)
         return {}
-    except Exception as e:
-        logger.error("Analysis failed: %s", e)
+    except Exception as exc:
+        logger.error("Analysis failed: %s", exc)
         return {}
 
 
-# ── Trait merging (incremental learning) ──────────────────────────────
-
-# Fields that require 3+ consistent readings before overwriting
 STABLE_FIELDS = {"attachment", "conflict_style", "boundaries"}
-
-# Fields that update more freely
 VOLATILE_FIELDS = {
     "emotional_depth",
     "emotional_regulation",
@@ -134,19 +108,10 @@ VOLATILE_FIELDS = {
 
 
 def merge_traits(existing: dict, new_traits: dict) -> dict:
-    """
-    Merge new analysis into existing trait profile.
-
-    - Stable traits only update after consistent readings
-    - Values are union-merged, never subtracted
-    - New fields fill in unknowns
-    """
     if not new_traits:
         return existing
 
     merged = {**existing}
-
-    # Track consistency counts
     counts = merged.get("_consistency_counts", {})
 
     for field in VOLATILE_FIELDS:
@@ -156,7 +121,6 @@ def merge_traits(existing: dict, new_traits: dict) -> dict:
             if old_val == "unknown" or not old_val:
                 merged[field] = new_val
             else:
-                # Update freely for volatile fields
                 merged[field] = new_val
 
     for field in STABLE_FIELDS:
@@ -170,47 +134,26 @@ def merge_traits(existing: dict, new_traits: dict) -> dict:
             elif old_val == new_val:
                 counts[field] = counts.get(field, 1) + 1
             else:
-                # Different value — only overwrite after 3 consistent new readings
                 count = counts.get(f"{field}_{new_val}", 0) + 1
                 counts[f"{field}_{new_val}"] = count
                 if count >= 3:
                     merged[field] = new_val
                     counts[field] = count
-                    # Reset competing counts
-                    for k in list(counts.keys()):
-                        if k.startswith(f"{field}_"):
-                            del counts[k]
+                    for key in list(counts.keys()):
+                        if key.startswith(f"{field}_"):
+                            del counts[key]
 
-    # Values — union merge
     existing_values = set(merged.get("values", []))
     new_values = set(new_traits.get("values", []))
     merged["values"] = sorted(existing_values | new_values)
-
     merged["_consistency_counts"] = counts
-
     return merged
 
 
-# ── Readiness check ───────────────────────────────────────────────────
-
 def check_readiness(traits: dict) -> bool:
-    """
-    Check if enough understanding exists for matching.
-
-    Requires:
-    - At least 6 non-unknown trait fields filled
-    - At least 2 values identified
-    """
     if not traits:
         return False
 
-    all_fields = list(VOLATILE_FIELDS | STABLE_FIELDS)
-    filled = sum(
-        1
-        for f in all_fields
-        if traits.get(f) and traits[f] != "unknown"
-    )
-
-    values_count = len(traits.get("values", []))
-
-    return filled >= 6 and values_count >= 2
+    fields = list(VOLATILE_FIELDS | STABLE_FIELDS)
+    filled = sum(1 for field in fields if traits.get(field) and traits[field] != "unknown")
+    return filled >= 6 and len(traits.get("values", [])) >= 2
