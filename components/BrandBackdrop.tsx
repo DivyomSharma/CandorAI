@@ -88,7 +88,7 @@ export function BrandBackdrop({ style }: BrandBackdropProps) {
   const webGradientStyle =
     Platform.OS === 'web'
       ? ({
-          backgroundImage: `linear-gradient(180deg, ${atmosphere.start} 0%, ${atmosphere.mid} 50%, ${atmosphere.end} 100%)`,
+          backgroundImage: `linear-gradient(180deg, ${atmosphere.start} 0%, ${atmosphere.mid} 52%, ${atmosphere.end} 100%)`,
         } as unknown as ViewStyle)
       : undefined;
 
@@ -103,44 +103,17 @@ export function BrandBackdrop({ style }: BrandBackdropProps) {
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }, webGradientStyle]} />
-      <View
-        style={[
-          styles.glowPrimary,
-          { backgroundColor: withAlpha(atmosphere.glow, 0.14) },
-        ]}
-      />
-      <View
-        style={[
-          styles.glowSecondary,
-          { backgroundColor: withAlpha(atmosphere.glow, 0.08) },
-        ]}
-      />
+      <View style={[StyleSheet.absoluteFill, styles.wash, { backgroundColor: withAlpha(atmosphere.glow, 0.028) }]} />
       <View style={[StyleSheet.absoluteFill, styles.grain, grainStyle]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  glowPrimary: {
-    borderRadius: 999,
-    height: 440,
-    left: '50%',
-    marginLeft: -280,
-    marginTop: -170,
-    position: 'absolute',
-    top: '32%',
-    width: 560,
-  },
-  glowSecondary: {
-    borderRadius: 999,
-    height: 320,
-    marginRight: -150,
-    position: 'absolute',
-    right: '16%',
-    top: '52%',
-    width: 320,
-  },
   grain: {
     opacity: 0.03,
+  },
+  wash: {
+    opacity: 1,
   },
 });

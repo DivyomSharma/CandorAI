@@ -78,9 +78,9 @@ export default function ProfileScreen() {
       <BrandBackdrop />
       <ScrollView contentContainerStyle={styles.content} style={styles.container}>
         <View style={styles.header}>
-          <BrandImage resizeMode="contain" style={styles.wordmark} variant="wordmark" />
+          <BrandImage style={styles.wordmark} variant="wordmark" />
           <View style={[styles.avatarCircle, { backgroundColor: colors.surface }]}>
-            <BrandImage resizeMode="contain" style={styles.avatarMark} variant="mark" />
+            <BrandImage style={styles.avatarMark} variant="mark" />
           </View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>your profile</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>

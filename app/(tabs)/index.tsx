@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BrandBackdrop } from '@/components/BrandBackdrop';
 import { BrandImage } from '@/components/BrandImage';
@@ -24,30 +18,67 @@ interface Profile {
   traits: Record<string, string | string[]> | null;
 }
 
+interface QuickLinkProps {
+  caption: string;
+  onPress: () => void;
+  title: string;
+}
+
+function QuickLink({ caption, onPress, title }: QuickLinkProps) {
+  const { colors } = useTheme();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={[
+        styles.quickLink,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
+      <Text style={[styles.quickLinkTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.quickLinkCaption, { color: colors.foregroundSecondary }]}>{caption}</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function HomeScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [latestAiConversationId, setLatestAiConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
       return;
     }
 
-    const fetchProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, bio, traits, match_ready, analysis_count')
-        .eq('id', user.id)
-        .single();
+    const fetchData = async () => {
+      const [{ data: profileData }, { data: conversationData }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('display_name, bio, traits, match_ready, analysis_count')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('conversations')
+          .select('id')
+          .eq('type', 'ai')
+          .contains('participant_ids', [user.id])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      if (data) {
-        setProfile(data as Profile);
+      if (profileData) {
+        setProfile(profileData as Profile);
       }
+
+      setLatestAiConversationId(conversationData?.id ?? null);
     };
 
-    void fetchProfile();
+    void fetchData();
 
     const channel = supabase
       .channel(`profile:${user.id}`)
@@ -63,8 +94,13 @@ export default function HomeScreen() {
     };
   }, [user]);
 
-  const startAIConversation = async () => {
+  const openCandor = async () => {
     if (!user) {
+      return;
+    }
+
+    if (latestAiConversationId) {
+      router.push(`/conversation/${latestAiConversationId}`);
       return;
     }
 
@@ -78,181 +114,196 @@ export default function HomeScreen() {
       .single();
 
     if (data && !error) {
+      setLatestAiConversationId(data.id);
       router.push(`/conversation/${data.id}`);
     }
   };
 
-  const getProgressText = () => {
-    if (profile?.match_ready) {
-      return 'someone might understand you';
-    }
+  const firstName = profile?.display_name?.trim().split(' ')[0]?.toLowerCase();
+  const intro = profile?.match_ready
+    ? 'someone has been unlocked. you can keep talking, or see who is waiting.'
+    : (profile?.analysis_count ?? 0) > 0
+      ? 'candor is listening closely enough to start noticing patterns.'
+      : 'start one quiet conversation and let candor do the rest.';
 
-    if ((profile?.analysis_count ?? 0) > 0 || (profile?.traits && Object.keys(profile.traits).length > 2)) {
-      return 'candor is learning';
-    }
-
-    return 'candor is listening';
-  };
-
-  const displayTraits = Object.entries(profile?.traits || {})
+  const traits = Object.entries(profile?.traits || {})
     .filter(([key, value]) => !Array.isArray(value) && value !== 'unknown' && !key.startsWith('_'))
-    .slice(0, 5);
+    .slice(0, 3);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <BrandBackdrop />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        style={styles.container}
-      >
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
         <View style={styles.header}>
           <BrandImage style={styles.wordmark} variant="wordmark" />
           <ThemeSelector />
         </View>
 
-        <View style={styles.hero}>
-          <Text style={[styles.heroTitle, { color: colors.foreground }]}>
-            hi{profile?.display_name ? `, ${profile.display_name.toLowerCase()}` : ''}.
-          </Text>
-          <Text style={[styles.heroSubtitle, { color: colors.foregroundSecondary }]}>
-            {getProgressText()}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={startAIConversation}
+        <View
           style={[
-            styles.card,
+            styles.heroCard,
             Shadows.soft,
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <View style={styles.cardHeader}>
-            <BrandImage style={styles.cardMark} variant="mark" />
-            <View style={styles.cardCopy}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>talk to candor</Text>
-              <Text style={[styles.cardDescription, { color: colors.foregroundSecondary }]}>
-                a quiet space for honest conversation.
-              </Text>
-            </View>
+          <Text style={[styles.eyebrow, { color: colors.foregroundSecondary }]}>
+            {firstName ? `welcome back, ${firstName}` : 'your quiet corner'}
+          </Text>
+          <Text style={[styles.heroTitle, { color: colors.foreground }]}>
+            honest conversation, gently held.
+          </Text>
+          <Text style={[styles.heroCopy, { color: colors.foregroundSecondary }]}>{intro}</Text>
+
+          <View style={styles.heroActions}>
+            <Button onPress={openCandor} title={latestAiConversationId ? 'continue with candor' : 'start with candor'} />
           </View>
+        </View>
 
-          <Button onPress={startAIConversation} title="start chatting" />
-        </TouchableOpacity>
+        <View style={styles.quickLinks}>
+          <QuickLink
+            caption="all conversations in one place"
+            onPress={() => router.push('/(tabs)/chat')}
+            title="conversations"
+          />
+          <QuickLink
+            caption={profile?.match_ready ? 'someone may be waiting' : 'unlocks appear here'}
+            onPress={() => router.push('/(tabs)/matches')}
+            title="matches"
+          />
+          <QuickLink
+            caption="adjust your name, bio, and sign-out"
+            onPress={() => router.push('/(tabs)/profile')}
+            title="profile"
+          />
+        </View>
 
-        {displayTraits.length > 0 && (
-          <View
-            style={[
-              styles.card,
-              Shadows.soft,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>what candor notices</Text>
-            <View style={styles.traitsGrid}>
-              {displayTraits.map(([trait, value]) => (
+        <View
+          style={[
+            styles.insightCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>what candor notices</Text>
+          {traits.length > 0 ? (
+            <View style={styles.insightList}>
+              {traits.map(([trait, value]) => (
                 <View
                   key={trait}
-                  style={[styles.traitChip, { borderBottomColor: colors.border }]}
+                  style={[styles.insightRow, { borderBottomColor: colors.border }]}
                 >
-                  <Text style={[styles.traitName, { color: colors.foregroundSecondary }]}>
+                  <Text style={[styles.insightLabel, { color: colors.foregroundSecondary }]}>
                     {trait.replace(/_/g, ' ')}
                   </Text>
-                  <Text style={[styles.traitValue, { color: colors.foreground }]}>
-                    {value as string}
-                  </Text>
+                  <Text style={[styles.insightValue, { color: colors.foreground }]}>{String(value)}</Text>
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          ) : (
+            <Text style={[styles.emptyCopy, { color: colors.foregroundSecondary }]}>
+              the first few conversations will start shaping this.
+            </Text>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: Radius['3xl'],
-    borderWidth: 1,
-    marginBottom: Spacing.lg,
-    padding: Spacing.xl,
-  },
-  cardCopy: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  cardDescription: {
-    ...Typography.bodySmall,
-    lineHeight: 24,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.lg,
-    marginBottom: Spacing.xl,
-  },
-  cardMark: {
-    borderRadius: 24,
-    height: 72,
-    width: 72,
-  },
-  cardTitle: {
-    ...Typography.subheading,
-    marginBottom: Spacing.xs,
-    textTransform: 'lowercase',
-  },
   container: {
     flex: 1,
   },
   content: {
     padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: 110,
+  },
+  emptyCopy: {
+    ...Typography.body,
+  },
+  eyebrow: {
+    ...Typography.caption,
+    marginBottom: Spacing.sm,
+    textTransform: 'lowercase',
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 56,
-  },
-  hero: {
     marginBottom: Spacing.xl,
   },
-  heroSubtitle: {
+  heroActions: {
+    marginTop: Spacing.xl,
+  },
+  heroCard: {
+    borderColor: 'transparent',
+    borderRadius: Radius['3xl'],
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+    padding: Spacing.xl,
+  },
+  heroCopy: {
     ...Typography.body,
-    marginTop: Spacing.sm,
+    maxWidth: 460,
   },
   heroTitle: {
     ...Typography.heading,
-    fontSize: 36,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 34,
+    lineHeight: 38,
+    marginBottom: Spacing.md,
+    maxWidth: 520,
+  },
+  insightCard: {
+    borderRadius: Radius['3xl'],
+    borderWidth: 1,
+    padding: Spacing.xl,
+  },
+  insightLabel: {
+    ...Typography.bodySmall,
+    textTransform: 'lowercase',
+  },
+  insightList: {
+    gap: Spacing.sm,
+  },
+  insightRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: Spacing.sm,
+  },
+  insightValue: {
+    ...Typography.body,
+    fontFamily: 'DMSans_500Medium',
+    marginTop: 2,
+    textTransform: 'lowercase',
+  },
+  quickLink: {
+    borderRadius: Radius['2xl'],
+    borderWidth: 1,
+    flex: 1,
+    minWidth: 180,
+    padding: Spacing.lg,
+  },
+  quickLinkCaption: {
+    ...Typography.bodySmall,
+    marginTop: Spacing.xs,
+  },
+  quickLinkTitle: {
+    ...Typography.body,
+    fontFamily: 'DMSans_500Medium',
+    textTransform: 'lowercase',
+  },
+  quickLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   sectionTitle: {
     ...Typography.subheading,
     marginBottom: Spacing.md,
     textTransform: 'lowercase',
   },
-  traitChip: {
-    alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.sm,
-  },
-  traitName: {
-    ...Typography.bodySmall,
-    textTransform: 'lowercase',
-  },
-  traitValue: {
-    ...Typography.body,
-    fontFamily: 'DMSans_500Medium',
-    textTransform: 'lowercase',
-  },
-  traitsGrid: {
-    gap: Spacing.md,
-  },
   wordmark: {
-    height: 56,
-    width: 200,
+    height: 42,
+    width: 150,
   },
 });

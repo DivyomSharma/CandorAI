@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Animated,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BrandBackdrop } from '@/components/BrandBackdrop';
 import { BrandImage } from '@/components/BrandImage';
+import { Button } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/services/supabase';
@@ -23,43 +17,6 @@ interface Match {
   match_reason: string | null;
   user_a_id: string;
   user_b_id: string;
-}
-
-function GlowingCircle() {
-  const { colors } = useTheme();
-  const [scale] = useState(new Animated.Value(1));
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, {
-          duration: 2000,
-          toValue: 1.1,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          duration: 2000,
-          toValue: 1,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [scale]);
-
-  return (
-    <View style={styles.glowContainer}>
-      <Animated.View
-        style={[
-          styles.glowOuter,
-          { backgroundColor: colors.bubbleUser, transform: [{ scale }] },
-        ]}
-      >
-        <View style={[styles.glowInner, { backgroundColor: colors.surface }]}>
-          <BrandImage resizeMode="contain" style={styles.glowMark} variant="mark" />
-        </View>
-      </Animated.View>
-    </View>
-  );
 }
 
 export default function MatchesScreen() {
@@ -77,13 +34,9 @@ export default function MatchesScreen() {
 
     const channel = supabase
       .channel(`matches:${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches' },
-        () => {
-          void loadMatches();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        void loadMatches();
+      })
       .subscribe();
 
     return () => {
@@ -129,35 +82,31 @@ export default function MatchesScreen() {
       .single();
 
     if (data) {
-      await supabase
-        .from('matches')
-        .update({ conversation_id: data.id })
-        .eq('id', match.id);
-
+      await supabase.from('matches').update({ conversation_id: data.id }).eq('id', match.id);
       router.push(`/conversation/${data.id}`);
     }
   };
 
   const renderMatch = ({ item }: { item: Match }) => (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.82}
       onPress={() => openMatchChat(item)}
       style={[
-        styles.matchCard,
-        Shadows.md,
-        { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+        styles.card,
+        Shadows.soft,
+        { backgroundColor: colors.surface, borderColor: colors.border },
       ]}
     >
-      <GlowingCircle />
-      <View style={styles.matchInfo}>
-        <Text style={[styles.matchName, { color: colors.foreground }]}>
-          someone who understands you
-        </Text>
-        <Text style={[styles.matchReason, { color: colors.foregroundSecondary }]}>
-          {item.match_reason || 'something quiet connects you'}
+      <View style={[styles.markWrap, { backgroundColor: colors.surfaceSecondary }]}>
+        <BrandImage style={styles.mark} variant="mark" />
+      </View>
+      <View style={styles.cardCopy}>
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>someone who understands you</Text>
+        <Text style={[styles.cardReason, { color: colors.foregroundSecondary }]}>
+          {item.match_reason || 'something quiet connects you.'}
         </Text>
       </View>
-      <Text style={[styles.chatArrow, { color: colors.foregroundSecondary }]}>{"\u2192"}</Text>
+      <Text style={[styles.chevron, { color: colors.foregroundSecondary }]}>{"\u2192"}</Text>
     </TouchableOpacity>
   );
 
@@ -171,32 +120,28 @@ export default function MatchesScreen() {
         renderItem={renderMatch}
         ListHeaderComponent={
           <View style={styles.header}>
-            <BrandImage resizeMode="contain" style={styles.wordmark} variant="wordmark" />
-            {matches.length > 0 ? (
-              <>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                you've unlocked someone who understands you
-              </Text>
-              <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
-                open the thread when you're ready
-              </Text>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>matches appear here</Text>
-                <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
-                  keep talking and candor will let the right person through.
-                </Text>
-              </>
-            )}
+            <BrandImage style={styles.wordmark} variant="wordmark" />
+            <Text style={[styles.title, { color: colors.foreground }]}>matches</Text>
+            <Text style={[styles.subtitle, { color: colors.foregroundSecondary }]}>
+              when candor finds a strong enough signal, the connection appears here.
+            </Text>
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <BrandImage resizeMode="contain" style={styles.emptyMark} variant="mark" />
-            <Text style={[styles.emptySubtitle, { color: colors.foregroundSecondary }]}>
-              no one has unlocked yet. keep talking.
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <BrandImage style={styles.emptyMark} variant="mark" />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>nothing unlocked yet</Text>
+            <Text style={[styles.emptyCopy, { color: colors.foregroundSecondary }]}>
+              keep talking with candor. the app needs more signal before it lets someone through.
             </Text>
+            <View style={styles.emptyAction}>
+              <Button onPress={() => router.push('/(tabs)')} title="go to home" variant="secondary" />
+            </View>
           </View>
         }
       />
@@ -205,91 +150,95 @@ export default function MatchesScreen() {
 }
 
 const styles = StyleSheet.create({
-  chatArrow: {
-    fontSize: 24,
-    opacity: 0.5,
+  card: {
+    alignItems: 'center',
+    borderRadius: Radius['2xl'],
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+  },
+  cardCopy: {
+    flex: 1,
+  },
+  cardReason: {
+    ...Typography.bodySmall,
+    lineHeight: 21,
+    marginTop: 4,
+  },
+  cardTitle: {
+    ...Typography.body,
+    fontFamily: 'DMSans_500Medium',
+    textTransform: 'lowercase',
+  },
+  chevron: {
+    fontSize: 22,
+    marginLeft: Spacing.sm,
   },
   container: {
     flex: 1,
   },
-  empty: {
-    alignItems: 'center',
-    paddingTop: Spacing.xxl,
+  emptyAction: {
+    marginTop: Spacing.lg,
+    width: '100%',
   },
-  emptyMark: {
-    height: 72,
-    marginBottom: Spacing.xl,
-    width: 72,
-  },
-  emptySubtitle: {
-    ...Typography.body,
-    textAlign: 'center',
-  },
-  glowContainer: {
-    alignItems: 'center',
-    height: 80,
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
-    width: 80,
-  },
-  glowInner: {
-    alignItems: 'center',
-    borderRadius: 24,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  glowMark: {
-    height: 24,
-    width: 24,
-  },
-  glowOuter: {
-    alignItems: 'center',
-    borderRadius: 40,
-    height: 80,
-    justifyContent: 'center',
-    width: 80,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    paddingTop: Spacing.md,
-  },
-  list: {
-    padding: Spacing.xl,
-  },
-  matchCard: {
+  emptyCard: {
     alignItems: 'center',
     borderRadius: Radius['3xl'],
-    marginBottom: Spacing.md,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
     padding: Spacing.xl,
   },
-  matchInfo: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
+  emptyCopy: {
+    ...Typography.body,
+    maxWidth: 380,
+    textAlign: 'center',
   },
-  matchName: {
+  emptyMark: {
+    height: 54,
+    marginBottom: Spacing.lg,
+    width: 54,
+  },
+  emptyTitle: {
     ...Typography.subheading,
     marginBottom: Spacing.sm,
-    textAlign: 'center',
+    textTransform: 'lowercase',
   },
-  matchReason: {
-    ...Typography.bodySmall,
-    textAlign: 'center',
+  header: {
+    marginBottom: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
-  sectionSubtitle: {
-    ...Typography.bodySmall,
-    textAlign: 'center',
+  list: {
+    padding: Spacing.lg,
+    paddingBottom: 110,
   },
-  sectionTitle: {
-    ...Typography.subheading,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
+  mark: {
+    height: 20,
+    width: 20,
+  },
+  markWrap: {
+    alignItems: 'center',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    width: 44,
+  },
+  subtitle: {
+    ...Typography.body,
+    marginTop: Spacing.xs,
+    maxWidth: 420,
+  },
+  title: {
+    ...Typography.heading,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 30,
+    marginTop: Spacing.md,
     textTransform: 'lowercase',
   },
   wordmark: {
-    height: 52,
-    marginBottom: Spacing.lg,
-    width: 180,
+    alignSelf: 'flex-start',
+    height: 34,
+    width: 118,
   },
 });

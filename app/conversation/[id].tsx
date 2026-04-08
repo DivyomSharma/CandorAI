@@ -17,6 +17,7 @@ import { ChatBubble } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import {
+  getConfiguredBackendUrl,
   requestAnalysis,
   requestMergeTraits,
   streamMessageToCandor,
@@ -34,8 +35,6 @@ interface Message {
   role: 'user' | 'assistant';
   sender_id: string;
 }
-
-const FALLBACK_REPLY = "take your time. i'm still here.";
 
 function TypingIndicator() {
   const { colors } = useTheme();
@@ -104,6 +103,7 @@ export default function ConversationScreen() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [chatError, setChatError] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const historyRef = useRef<ConversationMessage[]>([]);
   const userMessageCountRef = useRef(0);
@@ -209,10 +209,16 @@ export default function ConversationScreen() {
       return;
     }
 
+    if (!getConfiguredBackendUrl()) {
+      setChatError('candor is not connected yet. set EXPO_PUBLIC_API_URL to your railway backend.');
+      return;
+    }
+
     const userMessage = input.trim();
     setInput('');
     setSending(true);
     setStreamingText('');
+    setChatError('');
 
     const { error: insertError } = await supabase.from('messages').insert({
       content: userMessage,
@@ -274,24 +280,7 @@ export default function ConversationScreen() {
       },
       async () => {
         setStreamingText('');
-
-        await supabase.from('messages').insert({
-          content: FALLBACK_REPLY,
-          conversation_id: id,
-          role: 'assistant',
-          sender_id: 'ai',
-        });
-
-        await supabase
-          .from('conversations')
-          .update({ last_message: FALLBACK_REPLY })
-          .eq('id', id);
-
-        historyRef.current.push(
-          { content: userMessage, role: 'user' },
-          { content: FALLBACK_REPLY, role: 'assistant' }
-        );
-
+        setChatError('candor could not reply. check the backend deployment and try again.');
         setSending(false);
       }
     );
@@ -364,6 +353,16 @@ export default function ConversationScreen() {
           },
         ]}
       >
+        {!!chatError && (
+          <View
+            style={[
+              styles.errorBanner,
+              { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.errorText, { color: colors.foregroundSecondary }]}>{chatError}</Text>
+          </View>
+        )}
         <TextInput
           blurOnSubmit={false}
           editable={!sending}
@@ -408,6 +407,17 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     height: 6,
     width: 6,
+  },
+  errorBanner: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    width: '100%',
+  },
+  errorText: {
+    ...Typography.bodySmall,
   },
   empty: {
     alignItems: 'center',

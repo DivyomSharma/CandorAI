@@ -10,12 +10,37 @@ import { Platform } from 'react-native';
 // ── Backend URL ─────────────────────────────────────────────────────
 
 const getBackendUrl = (): string => {
-  if (Platform.OS === 'web') return 'http://localhost:8000';
+  const configuredUrl =
+    process.env.EXPO_PUBLIC_API_URL?.trim() || process.env.EXPO_PUBLIC_BACKEND_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, '');
+  }
+
+  if (Platform.OS === 'web') {
+    if (
+      typeof window === 'undefined' ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+    ) {
+      return 'http://localhost:8000';
+    }
+
+    return '';
+  }
   if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
   return 'http://localhost:8000';
 };
 
 const BACKEND_URL = getBackendUrl();
+
+function requireBackendUrl() {
+  if (!BACKEND_URL) {
+    throw new Error('candor backend url is not configured');
+  }
+
+  return BACKEND_URL;
+}
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -45,7 +70,7 @@ export async function sendMessageToCandor(
   userMessage: string,
   history: ConversationMessage[] = []
 ): Promise<ChatResponse> {
-  const response = await fetch(`${BACKEND_URL}/chat`, {
+  const response = await fetch(`${requireBackendUrl()}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: userMessage, history, stream: false }),
@@ -68,7 +93,7 @@ export async function streamMessageToCandor(
   onError: (error: Error) => void
 ): Promise<void> {
   try {
-    const response = await fetch(`${BACKEND_URL}/chat/stream`, {
+    const response = await fetch(`${requireBackendUrl()}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: userMessage, history, stream: true }),
@@ -121,7 +146,7 @@ export async function requestAnalysis(
   history: ConversationMessage[]
 ): Promise<AnalysisResponse> {
   try {
-    const response = await fetch(`${BACKEND_URL}/analyze`, {
+    const response = await fetch(`${requireBackendUrl()}/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, history }),
@@ -144,7 +169,7 @@ export async function requestMergeTraits(
   newTraits: Record<string, unknown>
 ): Promise<MergeResponse> {
   try {
-    const response = await fetch(`${BACKEND_URL}/merge-traits`, {
+    const response = await fetch(`${requireBackendUrl()}/merge-traits`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -179,4 +204,8 @@ export async function generateNextQuestion(
     conversationHistory.filter((m) => m.role === 'user').pop()?.content || '';
   const { reply } = await sendMessageToCandor(lastUserMsg, conversationHistory);
   return reply;
+}
+
+export function getConfiguredBackendUrl(): string {
+  return BACKEND_URL;
 }

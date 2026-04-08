@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BrandBackdrop } from '@/components/BrandBackdrop';
 import { BrandImage } from '@/components/BrandImage';
@@ -71,37 +65,43 @@ export default function ChatScreen() {
 
   const renderConversation = ({ item }: { item: Conversation }) => (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.82}
       onPress={() => router.push(`/conversation/${item.id}`)}
       style={[
-        styles.conversationItem,
+        styles.row,
         Shadows.sm,
-        { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+        { backgroundColor: colors.surface, borderColor: colors.border },
       ]}
     >
-      {item.type === 'ai' ? (
-        <View style={[styles.avatar, { backgroundColor: colors.surfaceSecondary }]}>
-          <BrandImage resizeMode="contain" style={styles.avatarMark} variant="mark" />
+      <View style={[styles.iconWrap, { backgroundColor: colors.surfaceSecondary }]}>
+        {item.type === 'ai' ? (
+          <BrandImage style={styles.mark} variant="mark" />
+        ) : (
+          <Text style={[styles.personIcon, { color: colors.foreground }]}>{"\u25CB"}</Text>
+        )}
+      </View>
+
+      <View style={styles.copy}>
+        <View style={styles.rowTop}>
+          <Text style={[styles.rowTitle, { color: colors.foreground }]}>
+            {item.type === 'ai' ? 'candor' : 'match conversation'}
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: item.type === 'ai' ? colors.surfaceSecondary : colors.bubbleUser },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: colors.foregroundSecondary }]}>
+              {item.type === 'ai' ? 'ai' : 'match'}
+            </Text>
+          </View>
         </View>
-      ) : (
-        <View style={[styles.avatar, { backgroundColor: colors.background }]}>
-          <Text style={[styles.avatarText, { color: colors.foreground }]}>{"\u25CB"}</Text>
-        </View>
-      )}
-      <View style={styles.conversationInfo}>
-        <Text style={[styles.conversationTitle, { color: colors.foreground }]}>
-          {item.type === 'ai' ? 'candor' : 'someone who understands'}
-        </Text>
-        <Text
-          numberOfLines={1}
-          style={[styles.conversationPreview, { color: colors.foregroundSecondary }]}
-        >
-          {item.last_message ?? 'start a conversation...'}
+
+        <Text numberOfLines={2} style={[styles.preview, { color: colors.foregroundSecondary }]}>
+          {item.last_message ?? 'open the thread when you are ready.'}
         </Text>
       </View>
-      <Text style={[styles.conversationTime, { color: colors.mutedForeground }]}>
-        {new Date(item.created_at).toLocaleDateString()}
-      </Text>
     </TouchableOpacity>
   );
 
@@ -112,120 +112,148 @@ export default function ChatScreen() {
         contentContainerStyle={styles.list}
         data={conversations}
         keyExtractor={(item) => item.id}
+        renderItem={renderConversation}
         ListHeaderComponent={
           <View style={styles.header}>
-            <BrandImage resizeMode="contain" style={styles.wordmark} variant="wordmark" />
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>conversation threads</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
-              start with candor or return to something unfinished.
+            <BrandImage style={styles.wordmark} variant="wordmark" />
+            <Text style={[styles.title, { color: colors.foreground }]}>conversations</Text>
+            <Text style={[styles.subtitle, { color: colors.foregroundSecondary }]}>
+              one place for candor and every unlocked connection.
             </Text>
+            <View style={styles.headerAction}>
+              <Button onPress={startNewAIChat} title="new conversation" />
+            </View>
           </View>
         }
-        renderItem={renderConversation}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <BrandImage resizeMode="contain" style={styles.emptyMark} variant="mark" />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>no conversations yet</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.foregroundSecondary }]}>
-              start with candor and let the quiet build
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <BrandImage style={styles.emptyMark} variant="mark" />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>nothing here yet</Text>
+            <Text style={[styles.emptyCopy, { color: colors.foregroundSecondary }]}>
+              start with candor and your first thread will appear here.
             </Text>
+            <View style={styles.emptyAction}>
+              <Button onPress={startNewAIChat} title="start with candor" />
+            </View>
           </View>
         }
       />
-      <View style={styles.ctaBar}>
-        <Button onPress={startNewAIChat} title="start a new chat" />
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    alignItems: 'center',
-    borderRadius: 28,
-    height: 56,
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-    width: 56,
+  badge: {
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  avatarMark: {
-    height: 28,
-    width: 28,
-  },
-  avatarText: {
-    fontSize: 20,
+  badgeText: {
+    ...Typography.caption,
+    textTransform: 'lowercase',
   },
   container: {
     flex: 1,
   },
-  conversationInfo: {
+  copy: {
     flex: 1,
   },
-  conversationItem: {
+  emptyAction: {
+    marginTop: Spacing.lg,
+    width: '100%',
+  },
+  emptyCard: {
     alignItems: 'center',
     borderRadius: Radius['3xl'],
+    borderWidth: 1,
+    marginTop: Spacing.sm,
+    padding: Spacing.xl,
+  },
+  emptyCopy: {
+    ...Typography.body,
+    maxWidth: 360,
+    textAlign: 'center',
+  },
+  emptyMark: {
+    height: 54,
+    marginBottom: Spacing.lg,
+    width: 54,
+  },
+  emptyTitle: {
+    ...Typography.subheading,
+    marginBottom: Spacing.sm,
+    textTransform: 'lowercase',
+  },
+  header: {
+    marginBottom: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+  headerAction: {
+    marginTop: Spacing.lg,
+    maxWidth: 240,
+  },
+  iconWrap: {
+    alignItems: 'center',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    width: 44,
+  },
+  list: {
+    padding: Spacing.lg,
+    paddingBottom: 110,
+  },
+  mark: {
+    height: 20,
+    width: 20,
+  },
+  personIcon: {
+    fontSize: 16,
+  },
+  preview: {
+    ...Typography.bodySmall,
+    lineHeight: 21,
+    marginTop: 4,
+  },
+  row: {
+    alignItems: 'center',
+    borderRadius: Radius['2xl'],
+    borderWidth: 1,
     flexDirection: 'row',
     marginBottom: Spacing.md,
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
-  conversationPreview: {
-    ...Typography.bodySmall,
-    marginTop: 2,
-  },
-  conversationTime: {
-    ...Typography.caption,
-  },
-  conversationTitle: {
+  rowTitle: {
     ...Typography.body,
     fontFamily: 'DMSans_500Medium',
     textTransform: 'lowercase',
   },
-  ctaBar: {
-    bottom: 20,
-    left: Spacing.lg,
-    position: 'absolute',
-    right: Spacing.lg,
-  },
-  empty: {
+  rowTop: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxl,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  emptyMark: {
-    height: 72,
-    marginBottom: Spacing.md,
-    width: 72,
-  },
-  emptySubtitle: {
+  subtitle: {
     ...Typography.body,
-    textAlign: 'center',
+    marginTop: Spacing.xs,
+    maxWidth: 420,
   },
-  emptyTitle: {
-    ...Typography.subheading,
-    marginBottom: Spacing.xs,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    paddingTop: Spacing.md,
-  },
-  list: {
-    padding: Spacing.lg,
-    paddingBottom: 120,
-  },
-  sectionSubtitle: {
-    ...Typography.bodySmall,
-    textAlign: 'center',
-  },
-  sectionTitle: {
-    ...Typography.subheading,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
+  title: {
+    ...Typography.heading,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 30,
+    marginTop: Spacing.md,
     textTransform: 'lowercase',
   },
   wordmark: {
-    height: 52,
-    marginBottom: Spacing.lg,
-    width: 180,
+    alignSelf: 'flex-start',
+    height: 34,
+    width: 118,
   },
 });

@@ -93,11 +93,13 @@ function RootLayoutNav() {
           options={{
             headerShown: true,
             headerStyle: { backgroundColor: colors.background },
-            headerTintColor: colors.primary,
-            headerTitle: 'conversation',
+            headerShadowVisible: false,
+            headerTintColor: colors.foreground,
+            headerTitle: 'candor',
             headerTitleStyle: {
               fontFamily: 'DMSans_400Regular',
               fontSize: 14,
+              fontWeight: '400',
             },
             presentation: 'card',
           }}
