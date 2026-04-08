@@ -104,11 +104,18 @@ class ConversationState:
     # Turns since last deep analysis
     turns_since_analysis: int = 0
 
+    # IDs of scenarios already shown to this user (to avoid repeats)
+    seen_scenarios: list[str] = field(default_factory=list)
+
     def record_response_type(self, rtype: str) -> None:
         self.response_types.append(rtype)
         # Keep only the last 10 to bound memory
         if len(self.response_types) > 10:
             self.response_types = self.response_types[-10:]
+
+    def mark_scenario_seen(self, scenario_id: str) -> None:
+        if scenario_id not in self.seen_scenarios:
+            self.seen_scenarios.append(scenario_id)
 
 
 # ---------------------------------------------------------------------------
@@ -363,11 +370,16 @@ def _build_engine_prompt(
     mode: Literal["passive", "exploration", "scenario"],
     force_question: bool,
     inject_scenario: bool,
+    scenario_text: str | None = None,
 ) -> str:
     """
     Append structured control blocks to the base system prompt.
     These give the model explicit, machine-generated instructions
     separate from the human-authored persona text.
+
+    scenario_text — if provided, the verbatim scenario body is injected
+    instead of a generic instruction, giving the model the exact words
+    to work from / follow-up on.
     """
     blocks: list[str] = [base_prompt]
 
@@ -411,12 +423,23 @@ def _build_engine_prompt(
         )
 
     if inject_scenario:
-        blocks.append(
-            "\n[INJECT SCENARIO]\n"
-            "Override current flow. Introduce a completely new scenario immediately.\n"
-            "Keep it short, concrete, and emotionally charged.\n"
-            "No preamble. Just the scenario."
-        )
+        if scenario_text:
+            # Verbatim personalised scenario — model follows up on this exact text
+            blocks.append(
+                "\n[INJECT SCENARIO — personalised]\n"
+                "The following scenario was selected for this user based on their profile.\n"
+                "Use it as the basis for your next response. You may quote it, reference it, \n"
+                "or riff on it — but stay inside its emotional territory.\n"
+                "Do not introduce a different scenario.\n\n"
+                f"{scenario_text}"
+            )
+        else:
+            blocks.append(
+                "\n[INJECT SCENARIO]\n"
+                "Override current flow. Introduce a completely new scenario immediately.\n"
+                "Keep it short, concrete, and emotionally charged.\n"
+                "No preamble. Just the scenario."
+            )
 
     # Hard output rules (reiterated as machine instruction, not persona)
     blocks.append(
@@ -468,6 +491,21 @@ async def run_turn(
 
     logger.info("mode=%s force_question=%s inject_scenario=%s", mode, force_question, inject_scenario)
 
+    # -- Step B2: Select personalised scenario if needed -------------------
+    scenario_text: str | None = None
+    if inject_scenario or mode == "scenario":
+        try:
+            try:
+                from .scenarios import select_scenario
+            except ImportError:
+                from scenarios import select_scenario
+            picked = select_scenario(state.user_profile, state.seen_scenarios)
+            scenario_text = f"{picked['label']}\n\n{picked['text']}\n\n{picked['question']}"
+            state.mark_scenario_seen(picked["id"])
+            logger.info("scenario selected: %s", picked["id"])
+        except Exception as exc:
+            logger.warning("Scenario selection failed (non-fatal): %s", exc)
+
     # -- Step C: Build prompt ----------------------------------------------
     system_prompt = _build_engine_prompt(
         base_prompt=base_system_prompt,
@@ -475,6 +513,7 @@ async def run_turn(
         mode=mode,
         force_question=force_question,
         inject_scenario=inject_scenario,
+        scenario_text=scenario_text,
     )
 
     # -- Step D: Add user message to history & build messages list ---------
@@ -608,12 +647,26 @@ async def run_turn_stream(
     force_question = should_force_question(state)
     inject_scenario = should_inject_scenario(state, user_message)
 
+    scenario_text: str | None = None
+    if inject_scenario or mode == "scenario":
+        try:
+            try:
+                from .scenarios import select_scenario
+            except ImportError:
+                from scenarios import select_scenario
+            picked = select_scenario(state.user_profile, state.seen_scenarios)
+            scenario_text = f"{picked['label']}\n\n{picked['text']}\n\n{picked['question']}"
+            state.mark_scenario_seen(picked["id"])
+        except Exception as exc:
+            logger.warning("Scenario selection failed (stream, non-fatal): %s", exc)
+
     system_prompt = _build_engine_prompt(
         base_prompt=base_system_prompt,
         profile=state.user_profile,
         mode=mode,
         force_question=force_question,
         inject_scenario=inject_scenario,
+        scenario_text=scenario_text,
     )
 
     history.append({"role": "user", "content": user_message})

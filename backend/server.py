@@ -23,11 +23,13 @@ try:
     from .candor_ai import MAX_COMPLETION_TOKENS, MODEL, SYSTEM_PROMPT, TEMPERATURE
     from .compatibility import score_compatibility
     from .engine import ConversationState, run_turn, run_turn_stream
+    from .scenarios import select_scenario
 except ImportError:
     from analysis import analyze_user, check_readiness, merge_traits
     from candor_ai import MAX_COMPLETION_TOKENS, MODEL, SYSTEM_PROMPT, TEMPERATURE
     from compatibility import score_compatibility
     from engine import ConversationState, run_turn, run_turn_stream
+    from scenarios import select_scenario
 
 logger = logging.getLogger("candor")
 FALLBACK_REPLY = "take your time. i'm still here."
@@ -56,8 +58,38 @@ def get_or_create_state(session_id: str | None) -> tuple[str, ConversationState]
     """Return (canonical_session_id, state), creating a fresh state if needed."""
     sid = session_id or "anonymous"
     if sid not in _session_states:
-        _session_states[sid] = ConversationState()
+        state = ConversationState()
+        # Seed profile + seen_scenarios from Supabase if user_id is real
+        if sid != "anonymous":
+            _load_persisted_state(sid, state)
+        _session_states[sid] = state
     return sid, _session_states[sid]
+
+
+def _load_persisted_state(user_id: str, state: ConversationState) -> None:
+    """
+    Attempt to hydrate a fresh ConversationState from the user's persisted
+    Supabase profile. Runs synchronously at session init (one-time cost).
+    Silently skips on any error.
+    """
+    try:
+        from supabase import create_client  # type: ignore
+        url = os.environ.get("SUPABASE_URL", "").strip()
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        if not url or not key or key == "REPLACE_WITH_SERVICE_ROLE_KEY":
+            return
+        sb = create_client(url, key)
+        result = sb.table("profiles").select("traits").eq("id", user_id).single().execute()
+        row = result.data or {}
+        traits = row.get("traits") or {}
+        if traits:
+            state.user_profile = traits
+            # Restore seen_scenarios from the persisted profile metadata
+            state.seen_scenarios = traits.pop("_seen_scenarios", [])
+            logger.debug("Hydrated session for user %s — %d traits, %d seen scenarios",
+                         user_id, len(state.user_profile), len(state.seen_scenarios))
+    except Exception as exc:
+        logger.debug("Could not hydrate session for %s (non-fatal): %s", user_id, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +285,81 @@ async def reset_session(req: ResetRequest):
     sid = req.user_id or "anonymous"
     _session_states.pop(sid, None)
     return {"reset": True, "session_id": sid}
+
+
+# ---------------------------------------------------------------------------
+# /opening  — personalised opening scenario for the landing card
+# ---------------------------------------------------------------------------
+
+
+class OpeningRequest(BaseModel):
+    # Optional — if provided, scenario is personalised from their stored profile.
+    # If absent, a random universal scenario is returned.
+    user_id: str | None = None
+
+
+class OpeningResponse(BaseModel):
+    id: str
+    label: str        # e.g. "imagine this"
+    text: str         # the scenario body
+    question: str     # the closing question
+    personalised: bool  # True if matched to a profile, False if random
+
+
+@app.post("/opening", response_model=OpeningResponse)
+async def opening_endpoint(req: OpeningRequest):
+    """
+    Returns a personalised opening scenario for a user.
+
+    - If user_id is given: loads their profile from Supabase (or in-memory
+      session state), picks the best-matching unseen scenario.
+    - If no user_id: picks a random universal scenario.
+    - Marks the scenario as seen so it won't repeat next time.
+    """
+    profile: dict = {}
+    seen_ids: list[str] = []
+    personalised = False
+
+    if req.user_id:
+        sid, state = get_or_create_state(req.user_id)
+        profile = state.user_profile
+        seen_ids = state.seen_scenarios
+
+    try:
+        scenario = select_scenario(profile, seen_ids)
+        personalised = bool(profile) and "general" not in scenario["tags"]
+
+        # Mark as seen in the session state (avoids repeat on next /opening call)
+        if req.user_id:
+            _, state = get_or_create_state(req.user_id)
+            state.mark_scenario_seen(scenario["id"])
+
+            # Also persist seen_scenarios into the profile blob so it survives restarts
+            try:
+                from .engine import persist_profile  # type: ignore
+            except ImportError:
+                from engine import persist_profile  # type: ignore
+
+            profile_with_seen = {**state.user_profile, "_seen_scenarios": state.seen_scenarios}
+            await persist_profile(req.user_id, profile_with_seen)
+
+        return OpeningResponse(
+            id=scenario["id"],
+            label=scenario["label"],
+            text=scenario["text"],
+            question=scenario["question"],
+            personalised=personalised,
+        )
+    except Exception as exc:
+        logger.error("Opening endpoint error: %s", exc, exc_info=True)
+        # Absolute fallback — the hardcoded original scenario
+        return OpeningResponse(
+            id="excited_no_reaction",
+            label="imagine this",
+            text="you're excited about something\nand the person you care about barely reacts.",
+            question="what stays with you more?",
+            personalised=False,
+        )
 
 
 # ---------------------------------------------------------------------------
