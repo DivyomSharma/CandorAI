@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Pressable,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Link } from 'expo-router';
 import { Button, Input } from '@/components/ui';
 import { BrandBackdrop } from '@/components/BrandBackdrop';
 import { BrandImage } from '@/components/BrandImage';
@@ -40,7 +42,7 @@ function readAuthUrlError() {
 
 export default function LoginScreen() {
   const { loading: authLoading, sendMagicLink, session } = useAuth();
-  const { colors, mode } = useTheme();
+  const { colors } = useTheme();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -97,6 +99,14 @@ export default function LoginScreen() {
     >
       <BrandBackdrop />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.topBar}>
+          <Link asChild href="/">
+            <Pressable style={styles.backLink}>
+              <Text style={[styles.backText, { color: colors.foregroundSecondary }]}>back</Text>
+            </Pressable>
+          </Link>
+        </View>
+
         <View style={styles.header}>
           <BrandImage style={styles.mark} variant="mark" />
           <BrandImage style={styles.wordmark} variant="wordmark" />
@@ -136,10 +146,9 @@ export default function LoginScreen() {
                 autoFocus
                 error={error}
                 keyboardType="email-address"
-                label="email"
                 onChangeText={setEmail}
                 onSubmitEditing={handleSendMagicLink}
-                placeholder="your email"
+                placeholder="email address"
                 returnKeyType="go"
                 textContentType="emailAddress"
                 value={email}
@@ -184,25 +193,26 @@ export default function LoginScreen() {
             </>
           )}
         </View>
-
-        <Text
-          style={[
-            styles.footerNote,
-            { color: mode === 'dark' ? 'rgba(176, 163, 151, 0.72)' : colors.foregroundSecondary },
-          ]}
-        >
-          if a previous link opens an old localhost address, ignore it and request a fresh one here.
-        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  backLink: {
+    paddingVertical: 6,
+  },
+  backText: {
+    ...Typography.bodySmall,
+    textTransform: 'lowercase',
+  },
   card: {
+    alignSelf: 'center',
     borderRadius: Radius['3xl'],
     borderWidth: 1,
+    maxWidth: 760,
     padding: Spacing.xl,
+    width: '100%',
   },
   cardSubtitle: {
     ...Typography.bodySmall,
@@ -217,11 +227,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  footerNote: {
-    ...Typography.caption,
-    marginTop: Spacing.lg,
-    textAlign: 'center',
   },
   header: {
     alignItems: 'center',
@@ -265,6 +270,9 @@ const styles = StyleSheet.create({
     ...Typography.body,
     lineHeight: 32,
     textAlign: 'center',
+  },
+  topBar: {
+    marginBottom: Spacing.lg,
   },
   wordmark: {
     height: 92,

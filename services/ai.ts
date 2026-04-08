@@ -14,7 +14,11 @@ const getBackendUrl = (): string => {
     process.env.EXPO_PUBLIC_API_URL?.trim() || process.env.EXPO_PUBLIC_BACKEND_URL?.trim();
 
   if (configuredUrl) {
-    return configuredUrl.replace(/\/+$/, '');
+    const normalizedUrl = /^https?:\/\//i.test(configuredUrl)
+      ? configuredUrl
+      : `https://${configuredUrl}`;
+
+    return normalizedUrl.replace(/\/+$/, '');
   }
 
   if (Platform.OS === 'web') {

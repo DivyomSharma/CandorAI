@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Button, Input } from '@/components/ui';
 import { BrandBackdrop } from '@/components/BrandBackdrop';
@@ -24,6 +25,7 @@ interface Profile {
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { colors } = useTheme();
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile>({ bio: '', display_name: '' });
   const [saving, setSaving] = useState(false);
 
@@ -71,7 +73,14 @@ export default function ProfileScreen() {
   const handleSignOut = () => {
     Alert.alert('sign out', 'are you sure you want to sign out?', [
       { text: 'cancel', style: 'cancel' },
-      { text: 'sign out', onPress: signOut, style: 'destructive' },
+      {
+        text: 'sign out',
+        onPress: async () => {
+          await signOut();
+          router.replace('/');
+        },
+        style: 'destructive',
+      },
     ]);
   };
 
