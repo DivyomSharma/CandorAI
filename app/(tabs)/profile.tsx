@@ -4,8 +4,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Button, Input } from '@/components/ui';
 import { BrandBackdrop } from '@/components/BrandBackdrop';
 import { BrandImage } from '@/components/BrandImage';
@@ -77,6 +79,20 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <BrandBackdrop />
       <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        <View style={styles.topBar}>
+          <View />
+          <TouchableOpacity
+            accessibilityLabel="sign out"
+            accessibilityRole="button"
+            activeOpacity={0.8}
+            onPress={handleSignOut}
+            style={[styles.signOutButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <FontAwesome color={colors.foregroundSecondary} name="sign-out" size={14} />
+            <Text style={[styles.signOutText, { color: colors.foregroundSecondary }]}>sign out</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <BrandImage style={styles.wordmark} variant="wordmark" />
           <View style={[styles.avatarCircle, { backgroundColor: colors.surface }]}>
@@ -115,9 +131,6 @@ export default function ProfileScreen() {
           <Button loading={saving} onPress={saveProfile} title="save" />
         </View>
 
-        <View style={styles.footer}>
-          <Button onPress={handleSignOut} title="sign out" variant="secondary" />
-        </View>
       </ScrollView>
     </View>
   );
@@ -161,12 +174,22 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     marginTop: Spacing.md,
   },
-  footer: {
-    alignItems: 'center',
-  },
   header: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
+  },
+  signOutButton: {
+    alignItems: 'center',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  signOutText: {
+    ...Typography.bodySmall,
+    textTransform: 'lowercase',
   },
   sectionSubtitle: {
     ...Typography.bodySmall,
@@ -178,6 +201,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
     textAlign: 'center',
     textTransform: 'lowercase',
+  },
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
   },
   wordmark: {
     height: 56,

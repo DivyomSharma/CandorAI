@@ -210,7 +210,7 @@ export default function ConversationScreen() {
     }
 
     if (!getConfiguredBackendUrl()) {
-      setChatError('candor is not connected yet. set EXPO_PUBLIC_API_URL to your railway backend.');
+      setChatError('candor is still waking up. try again shortly.');
       return;
     }
 
@@ -280,7 +280,7 @@ export default function ConversationScreen() {
       },
       async () => {
         setStreamingText('');
-        setChatError('candor could not reply. check the backend deployment and try again.');
+        setChatError('candor stepped away for a moment. try again shortly.');
         setSending(false);
       }
     );
