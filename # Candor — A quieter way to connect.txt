@@ -1,0 +1,20 @@
+# Candor — A quieter way to connect
+
+<!doctype html>
+<html lang="en" data-theme="soft-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Candor — A quieter way to connect</title>
+    <meta name="description" content="No swipes. Just honest conversations. Candor is an AI-powered connection platform that helps you find someone who truly understands you." />
+    <meta property="og:title" content="Candor — A quieter way to connect" />
+    <meta property="og:description" content="No swipes. Just honest conversations. An AI-powered connection platform." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="module" crossorigin src="/assets/index-CBqhYqI3.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BFfmCTTB.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

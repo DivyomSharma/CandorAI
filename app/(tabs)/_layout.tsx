@@ -1,0 +1,72 @@
+import React from 'react';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Tabs } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
+
+function TabBarIcon(props: {
+  name: React.ComponentProps<typeof FontAwesome>['name'];
+  color: string;
+}) {
+  return <FontAwesome size={22} style={{ marginBottom: -3 }} {...props} />;
+}
+
+export default function TabLayout() {
+  const { colors } = useTheme();
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShadowVisible: false,
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        headerTintColor: colors.primary,
+        headerTitleStyle: {
+          fontFamily: 'DMSans_400Regular',
+          fontSize: 14,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarLabelStyle: {
+          fontFamily: 'DMSans_400Regular',
+          fontSize: 11,
+        },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 56,
+          paddingBottom: 4,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          tabBarIcon: ({ color }) => <TabBarIcon color={color} name="home" />,
+          title: 'home',
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          tabBarIcon: ({ color }) => <TabBarIcon color={color} name="comment" />,
+          title: 'chat',
+        }}
+      />
+      <Tabs.Screen
+        name="matches"
+        options={{
+          tabBarIcon: ({ color }) => <TabBarIcon color={color} name="heart" />,
+          title: 'matches',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          tabBarIcon: ({ color }) => <TabBarIcon color={color} name="user" />,
+          title: 'profile',
+        }}
+      />
+    </Tabs>
+  );
+}

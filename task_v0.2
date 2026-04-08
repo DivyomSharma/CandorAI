@@ -1,0 +1,34 @@
+# Candor Intelligence System — Tasks
+
+## Phase 1 — Theme System
+- [ ] Rewrite `utils/theme.ts` with all 10 theme combos
+- [ ] Create `hooks/useTheme.tsx` (ThemeProvider + context)
+- [ ] Create `components/ThemeSelector.tsx`
+- [ ] Install DM Sans font
+
+## Phase 2 — Backend Intelligence
+- [ ] Create `backend/analysis.py` (analyze_user, merge_traits, check_readiness)
+- [ ] Create `backend/compatibility.py` (score_compatibility)
+- [ ] Add new endpoints to `server.py`
+
+## Phase 3 — UI Updates (theme-aware)
+- [ ] Update `_layout.tsx` — wrap in ThemeProvider
+- [ ] Update `ChatBubble.tsx` — match waitlist chat design
+- [ ] Update `conversation/[id].tsx` — typing indicator, analysis trigger
+- [ ] Update `(tabs)/index.tsx` — soft progress, theme selector
+- [ ] Update `(tabs)/chat.tsx` — theme colors
+- [ ] Update `(tabs)/matches.tsx` — soft unlock experience
+- [ ] Update `(tabs)/profile.tsx` — theme colors
+- [ ] Update `(auth)/login.tsx` — theme colors
+
+## Phase 4 — Services
+- [ ] Update `services/ai.ts` — add requestAnalysis
+- [ ] Update `services/matching.ts` — use backend compatibility
+
+## Phase 5 — Database
+- [ ] Add match_ready column to profiles
+
+## Phase 6 — Verify
+- [ ] Test backend endpoints
+- [ ] Test theme switching
+- [ ] Visual verification

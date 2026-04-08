@@ -1,0 +1,35 @@
+# Candor Execution Tasks
+
+- [/] 1. Project setup
+  - [/] Initialize Expo (React Native + web)
+  - [ ] Setup TypeScript
+  - [ ] Configure routing (Expo Router)
+- [ ] 2. Supabase integration
+  - [ ] Setup client
+  - [ ] Create tables (profiles, conversations, messages, matches, waitlist)
+  - [ ] Enable RLS policies
+- [ ] 3. Authentication
+  - [ ] Email login (magic link or OTP)
+  - [ ] Session handling
+- [ ] 4. Waitlist system (web)
+  - [ ] Connect input → Supabase
+- [/] 5. Chat system (core)
+  - [x] AI chat — Groq integration (streaming)
+  - [ ] Realtime messages
+  - [ ] Message storage
+- [/] 6. AI service layer
+  - [x] Groq backend (FastAPI + candor_ai.py)
+  - [x] `/chat` endpoint (non-streaming)
+  - [x] `/chat/stream` endpoint (SSE streaming)
+  - [x] System prompt (Candor personality)
+  - [x] Conversation history management (stateless backend, frontend-owned)
+  - [x] Calm error fallback ("take your time. i'm still here.")
+  - [x] Frontend `services/ai.ts` — sendMessageToCandor + streamMessageToCandor
+  - [x] Conversation screen streaming UI
+  - [ ] Prompt abstraction (generateNextQuestion, analyzeUserResponse, inferTraits)
+- [ ] 7. Matching system
+  - [ ] Basic compatibility logic
+  - [ ] Match creation
+- [ ] 8. User-to-user chat
+  - [ ] Realtime messaging
+  - [ ] Optional AI assistant

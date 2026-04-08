@@ -1,0 +1,222 @@
+# Candor Intelligence System — Implementation Plan
+
+> Derived directly from `e:\Candor\candor` (becandor.vercel.app source)
+
+---
+
+## Design System — Exact Port from Waitlist Site
+
+The waitlist site uses a **dual-axis theme**: `data-theme` (light/dark) × `data-accent` (sand/rose/sky/lavender/honey). This gives **10 theme combinations**. The values below are copied verbatim from [index.css](file:///e:/Candor/candor/src/index.css).
+
+### Theme Architecture for React Native
+
+Since RN doesn't have CSS variables, we convert to a `ThemeColors` object per combo. The HSL values from `index.css` are pre-computed to hex/rgba at build time.
+
+**Key tokens per theme:**
+- `background`, `surface`, `surfaceSecondary`
+- `foreground`, `foregroundSecondary`
+- `accent`, `accentForeground`
+- `primary`, `primaryForeground`
+- `card`, `cardForeground`
+- `border`, `input`
+- `muted`, `mutedForeground`
+
+**Font**: DM Sans (light 300, regular 400, medium 500) — matching `@import url('https://fonts.googleapis.com/css2?family=DM+Sans...')` from the source
+
+**Transitions**: 600ms ease on all color properties (matching `[data-theme] * { transition: ... 600ms ease }`)
+
+---
+
+## Proposed Changes
+
+### Phase 1 — Backend Intelligence
+
+#### [NEW] [analysis.py](file:///e:/Candor/candorapp/backend/analysis.py)
+
+Core analysis module:
+
+```python
+async def analyze_user(history: list[dict]) -> dict
+```
+
+- Sends history to Groq with an **analysis-only system prompt**
+- Returns exact schema:
+  ```json
+  {
+    "emotional_depth": "surface | moderate | deep",
+    "emotional_regulation": "stable | reactive | volatile | suppressed",
+    "communication_style": "direct | expressive | reserved | indirect",
+    "listening_quality": "attentive | selective | dismissive",
+    "attachment": "secure | anxious | avoidant | disorganized | unknown",
+    "conflict_style": "avoid | confront | reflect | escalate | withdraw | unknown",
+    "accountability": "high | moderate | low",
+    "consistency": "consistent | inconsistent | unpredictable",
+    "empathy_level": "high | moderate | low",
+    "boundaries": "healthy | weak | rigid",
+    "values": ["string"]
+  }
+  ```
+
+```python
+def merge_traits(existing: dict, new: dict) -> dict
+```
+- Stable fields (attachment, conflict_style): only update after 3+ consistent readings
+- Values: union-merge, never subtract
+- New fields fill in `unknown` → known
+
+```python
+def check_readiness(traits: dict) -> bool
+```
+- ≥6 non-unknown trait fields + ≥2 values → `match_ready = true`
+
+#### [NEW] [compatibility.py](file:///e:/Candor/candorapp/backend/compatibility.py)
+
+```python
+def score_compatibility(a: dict, b: dict) -> dict
+```
+- Weighted scoring (emotional_depth: 0.25, values overlap: 0.25, communication: 0.15, attachment complement: 0.15, empathy: 0.10, regulation: 0.10)
+- Returns `{ "score": 0.0-1.0, "reason": "you both value being understood deeply" }`
+- Reason is human-readable, never exposes raw traits
+
+#### [MODIFY] [server.py](file:///e:/Candor/candorapp/backend/server.py)
+Add 3 endpoints (existing `/chat`, `/chat/stream`, `/health` untouched):
+- `POST /analyze` → triggers analysis
+- `POST /merge-traits` → merges into existing
+- `POST /compatibility` → scores two users
+
+---
+
+### Phase 2 — Theme System (exact port from waitlist)
+
+#### [MODIFY] [theme.ts](file:///e:/Candor/candorapp/utils/theme.ts)
+Complete rewrite — port all 10 theme combos from [index.css](file:///e:/Candor/candor/src/index.css):
+
+Structure:
+```typescript
+type ThemeMode = 'light' | 'dark';
+type ThemeAccent = 'sand' | 'rose' | 'sky' | 'lavender' | 'honey';
+
+// Pre-computed HSL → hex for each combo
+const themes: Record<`${ThemeMode}-${ThemeAccent}`, ThemeColors> = { ... };
+```
+
+Each `ThemeColors` contains the exact tokens from CSS:
+- Sand dark default: bg `hsl(24,12%,9%)`, surface `hsl(24,10%,12%)`, fg `hsl(30,16%,90%)`
+- Rose light: bg `hsl(355,40%,95%)`, surface `hsl(352,35%,92%)`, fg `hsl(0,8%,28%)`
+- etc. (all 10 combos from index.css)
+
+Also includes:
+- `Typography` using DM Sans (300/400/500 weights)
+- `Shadows.soft` matching `.soft-shadow { box-shadow: 0 8px 40px -12px ... }`
+- `Radius` matching tailwind `--radius` + extensions (2xl, 3xl)
+
+#### [NEW] [useTheme.tsx](file:///e:/Candor/candorapp/hooks/useTheme.tsx)
+Port of [ThemeContext.tsx](file:///e:/Candor/candor/src/contexts/ThemeContext.tsx):
+- `useTheme()` → `{ mode, setMode, accent, setAccent, colors }`
+- Default: `dark` mode, `sand` accent (matching waitlist)
+- Persists to AsyncStorage/localStorage (with SSR guard)
+- `accents` array with `lightColor`/`darkColor` (from the exact values in ThemeContext.tsx)
+
+#### [NEW] [ThemeSelector.tsx](file:///e:/Candor/candorapp/components/ThemeSelector.tsx)
+Port of [ThemeSwitcher.tsx](file:///e:/Candor/candor/src/components/ThemeSwitcher.tsx):
+- Moon/Sun toggle for mode (left side)
+- Vertical divider
+- 5 colored dots (sand, rose, sky, lavender, honey)
+- Active dot has accent-colored ring
+- Uses `Animated` for spring-like indicator (replacing framer-motion)
+
+---
+
+### Phase 3 — UI Refinements
+
+All screens switch from static `Colors.xxx` to `useTheme().colors.xxx`
+
+#### [MODIFY] [ChatBubble.tsx](file:///e:/Candor/candorapp/components/ui/ChatBubble.tsx)
+Match [ChatDemo.tsx](file:///e:/Candor/candor/src/components/ChatDemo.tsx) design:
+- User bubble: `accent/20` background (translucent accent)
+- AI bubble: `surfaceSecondary` background
+- Rounded 2xl (`borderRadius: radius + 8`)
+- `px-5 py-3`, text-sm, leading-relaxed
+- Fade-in animation (500ms, translateY 12 → 0)
+
+#### [MODIFY] [conversation/\[id\].tsx](file:///e:/Candor/candorapp/app/conversation/%5Bid%5D.tsx)
+- Trigger `requestAnalysis()` after every ~10 user messages (silent, async)
+- Typing indicator: 3 dots with staggered opacity animation (matching ChatDemo TypingIndicator)
+- Theme-aware colors
+- Input placeholder: "say something honest..." in `foregroundSecondary/50`
+
+#### [MODIFY] [(tabs)/index.tsx](file:///e:/Candor/candorapp/app/(tabs)/index.tsx)
+- Remove 🤖 emoji, use ✦ for Candor
+- Soft progress: "candor is listening" → "candor is learning" → "someone might understand you"
+- Theme switcher at bottom (ThemeSelector component)
+- All text lowercase
+
+#### [MODIFY] [(tabs)/matches.tsx](file:///e:/Candor/candorapp/app/(tabs)/matches.tsx)
+Match [UnlockSection.tsx](file:///e:/Candor/candor/src/components/UnlockSection.tsx) design:
+- "you've unlocked someone who understands you"
+- Show compatibility `reason` (not raw score/traits)
+- Soft glow circle animation on match card
+- No aggressive percentages
+
+#### [MODIFY] [(tabs)/chat.tsx](file:///e:/Candor/candorapp/app/(tabs)/chat.tsx)
+- Theme-aware colors
+- Soft design, rounded 2xl cards
+
+#### [MODIFY] [(auth)/login.tsx](file:///e:/Candor/candorapp/app/(auth)/login.tsx)
+- Theme-aware, DM Sans font
+- Lowercase text
+
+#### [MODIFY] [_layout.tsx](file:///e:/Candor/candorapp/app/_layout.tsx)
+- Wrap app in `ThemeProvider`
+
+---
+
+### Phase 4 — Frontend Services
+
+#### [MODIFY] [ai.ts](file:///e:/Candor/candorapp/services/ai.ts)
+Add:
+- `requestAnalysis(userId, history)` — calls `POST /analyze`
+- `requestMergeTraits(userId, existing, newTraits)` — calls `POST /merge-traits`
+
+#### [MODIFY] [matching.ts](file:///e:/Candor/candorapp/services/matching.ts)
+Replace cosine similarity with backend compatibility engine:
+- `getCompatibility(userATraits, userBTraits)` — calls `POST /compatibility`
+- `checkMatchReady(userId)` — reads profile, checks `match_ready`
+
+---
+
+### Phase 5 — Database
+
+#### Supabase migration
+
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS match_ready boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS analysis_count integer DEFAULT 0;
+```
+
+---
+
+## Execution Order
+
+1. `theme.ts` + `useTheme.tsx` + `ThemeSelector.tsx` — theme system
+2. Update all screens to use `useTheme()`
+3. `analysis.py` + `compatibility.py` — backend intelligence
+4. `server.py` — new endpoints
+5. `ai.ts` + `matching.ts` — frontend service updates
+6. `conversation/[id].tsx` — wire analysis trigger
+7. `matches.tsx` — soft match unlock UI
+8. Final polish — animations, typing indicator, lowercase
+
+---
+
+## Verification Plan
+
+### Automated
+- Backend: hit `/analyze` with 12-message history → valid JSON schema
+- Backend: hit `/compatibility` → score ∈ [0,1], reason non-empty
+- Frontend: theme switch doesn't flash (600ms transition)
+
+### Manual
+- Chat 12+ messages → analysis triggers without interruption
+- Switch all 10 theme combos → verify consistency with becandor.vercel.app
+- Match unlock → soft reveal, no raw data shown
