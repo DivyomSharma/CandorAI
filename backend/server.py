@@ -7,6 +7,7 @@ repository root, which is how Railway starts the app.
 
 import logging
 import os
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -32,12 +33,11 @@ FALLBACK_REPLY = "take your time. i'm still here."
 load_dotenv(Path(__file__).with_name(".env"))
 load_dotenv()
 
-if not os.environ.get("GROQ_API_KEY"):
-    raise RuntimeError(
-        "GROQ_API_KEY is not set. Copy .env.example to .env and add your Groq API key."
-    )
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+client = AsyncGroq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-client = AsyncGroq()
+if not GROQ_API_KEY:
+    logger.warning("GROQ_API_KEY is not set. Candor will stay online, but AI replies will fall back.")
 
 
 @asynccontextmanager
@@ -71,6 +71,8 @@ class MessageItem(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: list[MessageItem] = []
+    profile: dict | None = None
+    mode: str | None = None
     stream: bool = False
 
 
@@ -79,11 +81,38 @@ class ChatResponse(BaseModel):
     history: list[MessageItem]
 
 
+def build_system_prompt(profile: dict | None = None, mode: str | None = None) -> str:
+    prompt = SYSTEM_PROMPT
+
+    if profile:
+        prompt += f"\n\nuser profile: {json.dumps(profile, ensure_ascii=True)}"
+
+    if mode:
+        prompt += f"\nconversation mode: {mode}"
+
+    prompt += (
+        "\n\nconversation rules:"
+        "\n- help the user react and reveal themselves, not perform"
+        "\n- keep one question at a time, or none"
+        "\n- if a scenario is being discussed, stay inside it gently"
+        "\n- never sound like an assistant"
+    )
+
+    return prompt
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(req: ChatRequest):
     history = [{"role": message.role, "content": message.content} for message in req.history]
     history.append({"role": "user", "content": req.message})
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+    messages = [{"role": "system", "content": build_system_prompt(req.profile, req.mode)}] + history
+
+    if client is None:
+        history.append({"role": "assistant", "content": FALLBACK_REPLY})
+        return ChatResponse(
+            reply=FALLBACK_REPLY,
+            history=[MessageItem(role=item["role"], content=item["content"]) for item in history],
+        )
 
     try:
         completion = await client.chat.completions.create(
@@ -114,12 +143,17 @@ async def chat_endpoint(req: ChatRequest):
 async def chat_stream_endpoint(req: ChatRequest):
     history = [{"role": message.role, "content": message.content} for message in req.history]
     history.append({"role": "user", "content": req.message})
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+    messages = [{"role": "system", "content": build_system_prompt(req.profile, req.mode)}] + history
 
     async def generate():
-        import json
-
         reply_parts: list[str] = []
+
+        if client is None:
+            for word in FALLBACK_REPLY.split(" "):
+                yield f"data: {json.dumps({'token': word + ' '})}\n\n"
+            history.append({"role": "assistant", "content": FALLBACK_REPLY})
+            yield f"data: {json.dumps({'done': True, 'reply': FALLBACK_REPLY, 'history': history})}\n\n"
+            return
 
         try:
             stream = await client.chat.completions.create(
@@ -159,7 +193,11 @@ async def chat_stream_endpoint(req: ChatRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": MODEL}
+    return {
+        "groq_configured": bool(GROQ_API_KEY),
+        "model": MODEL,
+        "status": "ok",
+    }
 
 
 class AnalysisRequest(BaseModel):

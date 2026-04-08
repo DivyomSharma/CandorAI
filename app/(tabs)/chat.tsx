@@ -99,7 +99,7 @@ export default function ChatScreen() {
         </View>
 
         <Text numberOfLines={2} style={[styles.preview, { color: colors.foregroundSecondary }]}>
-          {item.last_message ?? 'open the thread when you are ready.'}
+          {item.last_message ?? 'this felt unfinished.'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -116,12 +116,12 @@ export default function ChatScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <BrandImage style={styles.wordmark} variant="wordmark" />
-            <Text style={[styles.title, { color: colors.foreground }]}>conversations</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>you left this here</Text>
             <Text style={[styles.subtitle, { color: colors.foregroundSecondary }]}>
-              one place for candor and every unlocked connection.
+              continue this, if it still feels unfinished.
             </Text>
             <View style={styles.headerAction}>
-              <Button onPress={startNewAIChat} title="new conversation" />
+              <Button onPress={startNewAIChat} title="start something" />
             </View>
           </View>
         }
@@ -133,9 +133,9 @@ export default function ChatScreen() {
             ]}
           >
             <BrandImage style={styles.emptyMark} variant="mark" />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>nothing here yet</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>continue this?</Text>
             <Text style={[styles.emptyCopy, { color: colors.foregroundSecondary }]}>
-              start with candor and your first thread will appear here.
+              start talking and candor will leave the thread here for you.
             </Text>
             <View style={styles.emptyAction}>
               <Button onPress={startNewAIChat} title="start with candor" />

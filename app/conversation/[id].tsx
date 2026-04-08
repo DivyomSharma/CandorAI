@@ -36,6 +36,17 @@ interface Message {
   sender_id: string;
 }
 
+const starterScenarios: Record<string, string> = {
+  bothering:
+    "read this. tell me what you think.\n\nsomething small keeps happening, but it keeps staying with you longer than it should.\nwhy do you think that is?",
+  relationship:
+    "read this. tell me what you think.\n\nyou’re excited about something.\nthe person you care about barely reacts.\nwhat stays with you more?",
+  thinking:
+    "read this. tell me what you think.\n\nthere’s an idea you keep returning to.\nit isn’t urgent, but it won’t leave.\nwhat do you think it keeps asking from you?",
+  talk:
+    "read this. tell me what you think.\n\nsomeone asks how you’ve been.\nyou almost say the real thing, then don’t.\nwhat made you stop?",
+};
+
 function TypingIndicator() {
   const { colors } = useTheme();
   const [dots] = useState([
@@ -95,8 +106,23 @@ function withAlpha(color: string, alpha: number) {
   return `hsla(${match[1]}, ${alpha})`;
 }
 
+function inferMode(starter?: string, text?: string) {
+  if (starter && starter !== 'talk') {
+    return 'scenario';
+  }
+
+  const lowered = (text || '').toLowerCase();
+  if (lowered.includes('match') || lowered.includes('someone who makes sense')) {
+    return 'guidance';
+  }
+  if (lowered.includes('?')) {
+    return 'exploration';
+  }
+  return 'passive';
+}
+
 export default function ConversationScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, starter } = useLocalSearchParams<{ id: string; starter?: string }>();
   const { user } = useAuth();
   const { colors } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -104,20 +130,66 @@ export default function ConversationScreen() {
   const [sending, setSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [chatError, setChatError] = useState('');
+  const [profileTraits, setProfileTraits] = useState<Record<string, unknown>>({});
   const flatListRef = useRef<FlatList>(null);
   const historyRef = useRef<ConversationMessage[]>([]);
-  const userMessageCountRef = useRef(0);
 
   useEffect(() => {
     if (!id) {
       return;
     }
 
+    void loadProfileTraits();
     void loadMessages();
     const unsubscribe = subscribeToMessages();
 
     return unsubscribe;
-  }, [id]);
+  }, [id, user]);
+
+  const loadProfileTraits = async () => {
+    if (!user) {
+      return;
+    }
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('traits')
+      .eq('id', user.id)
+      .single();
+
+    setProfileTraits((data?.traits as Record<string, unknown>) || {});
+  };
+
+  const seedScenarioIfNeeded = async () => {
+    if (!id) {
+      return;
+    }
+
+    const key = starter && starterScenarios[starter] ? starter : 'relationship';
+    const firstPrompt = starterScenarios[key];
+
+    const { data: existing } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('conversation_id', id)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return;
+    }
+
+    await supabase.from('messages').insert({
+      content: firstPrompt,
+      conversation_id: id,
+      role: 'assistant',
+      sender_id: 'ai',
+    });
+
+    await supabase
+      .from('conversations')
+      .update({ last_message: 'read this. tell me what you think.' })
+      .eq('id', id);
+  };
 
   const loadMessages = async () => {
     const { data } = await supabase
@@ -126,14 +198,20 @@ export default function ConversationScreen() {
       .eq('conversation_id', id)
       .order('created_at', { ascending: true });
 
-    if (data) {
-      setMessages(data);
-      historyRef.current = data.map((message) => ({
-        content: message.content,
-        role: message.role as 'user' | 'assistant',
-      }));
-      userMessageCountRef.current = data.filter((message) => message.role === 'user').length;
+    if (!data) {
+      return;
     }
+
+    if (data.length === 0) {
+      await seedScenarioIfNeeded();
+      return;
+    }
+
+    setMessages(data);
+    historyRef.current = data.map((message) => ({
+      content: message.content,
+      role: message.role as 'user' | 'assistant',
+    }));
   };
 
   const subscribeToMessages = () => {
@@ -154,7 +232,12 @@ export default function ConversationScreen() {
               return previous;
             }
 
-            return [...previous, newMessage];
+            const next = [...previous, newMessage];
+            historyRef.current = next.map((message) => ({
+              content: message.content,
+              role: message.role,
+            }));
+            return next;
           });
         }
       )
@@ -196,11 +279,13 @@ export default function ConversationScreen() {
         })
         .eq('id', user.id);
 
+      setProfileTraits(merged.merged_traits);
+
       if (merged.match_ready) {
         await findAndCreateMatches(user.id);
       }
     } catch {
-      // Analysis is background work.
+      // background only
     }
   };
 
@@ -237,8 +322,6 @@ export default function ConversationScreen() {
       .update({ last_message: userMessage })
       .eq('id', id);
 
-    userMessageCountRef.current += 1;
-
     const { data: conversation } = await supabase
       .from('conversations')
       .select('type')
@@ -253,6 +336,8 @@ export default function ConversationScreen() {
     await streamMessageToCandor(
       userMessage,
       historyRef.current,
+      profileTraits,
+      inferMode(starter, userMessage),
       (token) => {
         setStreamingText((previous) => previous + token);
       },
@@ -273,10 +358,7 @@ export default function ConversationScreen() {
           .eq('id', id);
 
         setSending(false);
-
-        if (userMessageCountRef.current % 10 === 0) {
-          void runAnalysis();
-        }
+        void runAnalysis();
       },
       async () => {
         setStreamingText('');
@@ -325,7 +407,7 @@ export default function ConversationScreen() {
           <View style={styles.empty}>
             <Text style={[styles.emptyEmoji, { color: colors.foregroundSecondary }]}>{"\u2726"}</Text>
             <Text style={[styles.emptyText, { color: colors.foregroundSecondary }]}>
-              start a conversation with candor
+              read this. tell me what you think.
             </Text>
           </View>
         }
@@ -370,7 +452,7 @@ export default function ConversationScreen() {
           multiline
           onChangeText={setInput}
           onKeyPress={handleComposerKeyPress}
-          placeholder="say something honest..."
+          placeholder="say what comes naturally…"
           placeholderTextColor={withAlpha(colors.foregroundSecondary, 0.5)}
           style={[
             styles.textInput,
@@ -408,17 +490,6 @@ const styles = StyleSheet.create({
     height: 6,
     width: 6,
   },
-  errorBanner: {
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    marginBottom: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    width: '100%',
-  },
-  errorText: {
-    ...Typography.bodySmall,
-  },
   empty: {
     alignItems: 'center',
     flex: 1,
@@ -433,6 +504,17 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  errorBanner: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    width: '100%',
+  },
+  errorText: {
+    ...Typography.bodySmall,
   },
   inputRow: {
     alignItems: 'flex-end',

@@ -27,7 +27,13 @@ export default function TabLayout() {
           fontSize: 14,
         },
         tabBarActiveTintColor: colors.primary,
+        tabBarActiveBackgroundColor: colors.bubbleUser,
         tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarItemStyle: {
+          borderRadius: 20,
+          marginHorizontal: 4,
+          marginVertical: 6,
+        },
         tabBarLabelStyle: {
           fontFamily: 'DMSans_400Regular',
           fontSize: 11,

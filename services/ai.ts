@@ -53,6 +53,16 @@ export interface ConversationMessage {
   content: string;
 }
 
+interface UserProfilePayload {
+  attachment?: string;
+  communication_style?: string;
+  conflict_style?: string;
+  emotional_depth?: string;
+  emotional_regulation?: string;
+  empathy_level?: string;
+  values?: string[];
+}
+
 interface ChatResponse {
   reply: string;
   history: ConversationMessage[];
@@ -72,12 +82,14 @@ interface MergeResponse {
 
 export async function sendMessageToCandor(
   userMessage: string,
-  history: ConversationMessage[] = []
+  history: ConversationMessage[] = [],
+  profile?: UserProfilePayload,
+  mode?: string
 ): Promise<ChatResponse> {
   const response = await fetch(`${requireBackendUrl()}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: userMessage, history, stream: false }),
+    body: JSON.stringify({ message: userMessage, history, profile, mode, stream: false }),
   });
 
   if (!response.ok) {
@@ -92,6 +104,8 @@ export async function sendMessageToCandor(
 export async function streamMessageToCandor(
   userMessage: string,
   history: ConversationMessage[] = [],
+  profile: UserProfilePayload | undefined,
+  mode: string | undefined,
   onToken: (token: string) => void,
   onDone: (reply: string, updatedHistory: ConversationMessage[]) => void,
   onError: (error: Error) => void
@@ -100,7 +114,7 @@ export async function streamMessageToCandor(
     const response = await fetch(`${requireBackendUrl()}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMessage, history, stream: true }),
+      body: JSON.stringify({ message: userMessage, history, profile, mode, stream: true }),
     });
 
     if (!response.ok) throw new Error(`Candor AI error (${response.status})`);

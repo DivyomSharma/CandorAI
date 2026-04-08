@@ -10,34 +10,40 @@ import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/services/supabase';
 import { Radius, Shadows, Spacing, Typography } from '@/utils/theme';
 
+type StarterType = 'relationship' | 'bothering' | 'thinking' | 'talk';
+
 interface Profile {
   analysis_count: number;
-  bio: string | null;
   display_name: string | null;
   match_ready: boolean;
-  traits: Record<string, string | string[]> | null;
 }
 
-interface QuickLinkProps {
-  caption: string;
+const entryOptions: { description: string; key: StarterType; label: string }[] = [
+  { key: 'relationship', label: 'a relationship situation', description: 'start with something involving someone else' },
+  { key: 'bothering', label: 'something that’s been bothering me', description: 'name the thing that keeps returning' },
+  { key: 'thinking', label: 'something i’ve been thinking about', description: 'start from a thought that won’t leave' },
+  { key: 'talk', label: 'just talk', description: 'enter quietly and see where it goes' },
+];
+
+function EntryCard({
+  description,
+  label,
+  onPress,
+}: {
+  description: string;
+  label: string;
   onPress: () => void;
-  title: string;
-}
-
-function QuickLink({ caption, onPress, title }: QuickLinkProps) {
+}) {
   const { colors } = useTheme();
 
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.86}
       onPress={onPress}
-      style={[
-        styles.quickLink,
-        { backgroundColor: colors.surface, borderColor: colors.border },
-      ]}
+      style={[styles.entryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
     >
-      <Text style={[styles.quickLinkTitle, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.quickLinkCaption, { color: colors.foregroundSecondary }]}>{caption}</Text>
+      <Text style={[styles.entryTitle, { color: colors.foreground }]}>{label}</Text>
+      <Text style={[styles.entryDescription, { color: colors.foregroundSecondary }]}>{description}</Text>
     </TouchableOpacity>
   );
 }
@@ -47,60 +53,26 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [latestAiConversationId, setLatestAiConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
       return;
     }
 
-    const fetchData = async () => {
-      const [{ data: profileData }, { data: conversationData }] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('display_name, bio, traits, match_ready, analysis_count')
-          .eq('id', user.id)
-          .single(),
-        supabase
-          .from('conversations')
-          .select('id')
-          .eq('type', 'ai')
-          .contains('participant_ids', [user.id])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      if (profileData) {
-        setProfile(profileData as Profile);
-      }
-
-      setLatestAiConversationId(conversationData?.id ?? null);
-    };
-
-    void fetchData();
-
-    const channel = supabase
-      .channel(`profile:${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        (payload) => setProfile(payload.new as Profile)
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    supabase
+      .from('profiles')
+      .select('display_name, match_ready, analysis_count')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setProfile(data as Profile);
+        }
+      });
   }, [user]);
 
-  const openCandor = async () => {
+  const startConversation = async (starter?: StarterType) => {
     if (!user) {
-      return;
-    }
-
-    if (latestAiConversationId) {
-      router.push(`/conversation/${latestAiConversationId}`);
       return;
     }
 
@@ -114,21 +86,11 @@ export default function HomeScreen() {
       .single();
 
     if (data && !error) {
-      setLatestAiConversationId(data.id);
-      router.push(`/conversation/${data.id}`);
+      router.push(starter ? `/conversation/${data.id}?starter=${starter}` : `/conversation/${data.id}`);
     }
   };
 
   const firstName = profile?.display_name?.trim().split(' ')[0]?.toLowerCase();
-  const intro = profile?.match_ready
-    ? 'someone has been unlocked. you can keep talking, or see who is waiting.'
-    : (profile?.analysis_count ?? 0) > 0
-      ? 'candor is listening closely enough to start noticing patterns.'
-      : 'start one quiet conversation and let candor do the rest.';
-
-  const traits = Object.entries(profile?.traits || {})
-    .filter(([key, value]) => !Array.isArray(value) && value !== 'unknown' && !key.startsWith('_'))
-    .slice(0, 3);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -146,63 +108,62 @@ export default function HomeScreen() {
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.eyebrow, { color: colors.foregroundSecondary }]}>
-            {firstName ? `welcome back, ${firstName}` : 'your quiet corner'}
+          <Text style={[styles.heroEyebrow, { color: colors.foregroundSecondary }]}>
+            {firstName ? `welcome back, ${firstName}` : 'entry engine'}
           </Text>
-          <Text style={[styles.heroTitle, { color: colors.foreground }]}>
-            honest conversation, gently held.
+          <Text style={[styles.heroTitle, { color: colors.foreground }]}>what’s been on your mind lately?</Text>
+          <Text style={[styles.heroSubtitle, { color: colors.foregroundSecondary }]}>
+            you don’t have to impress anyone here.
           </Text>
-          <Text style={[styles.heroCopy, { color: colors.foregroundSecondary }]}>{intro}</Text>
 
-          <View style={styles.heroActions}>
-            <Button onPress={openCandor} title={latestAiConversationId ? 'continue with candor' : 'start with candor'} />
+          <View style={styles.entryGrid}>
+            {entryOptions.map((option) => (
+              <EntryCard
+                key={option.key}
+                description={option.description}
+                label={option.label}
+                onPress={() => startConversation(option.key)}
+              />
+            ))}
           </View>
-        </View>
-
-        <View style={styles.quickLinks}>
-          <QuickLink
-            caption="all conversations in one place"
-            onPress={() => router.push('/(tabs)/chat')}
-            title="conversations"
-          />
-          <QuickLink
-            caption={profile?.match_ready ? 'someone may be waiting' : 'unlocks appear here'}
-            onPress={() => router.push('/(tabs)/matches')}
-            title="matches"
-          />
-          <QuickLink
-            caption="adjust your name, bio, and sign-out"
-            onPress={() => router.push('/(tabs)/profile')}
-            title="profile"
-          />
         </View>
 
         <View
           style={[
-            styles.insightCard,
+            styles.scenarioCard,
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>what candor notices</Text>
-          {traits.length > 0 ? (
-            <View style={styles.insightList}>
-              {traits.map(([trait, value]) => (
-                <View
-                  key={trait}
-                  style={[styles.insightRow, { borderBottomColor: colors.border }]}
-                >
-                  <Text style={[styles.insightLabel, { color: colors.foregroundSecondary }]}>
-                    {trait.replace(/_/g, ' ')}
-                  </Text>
-                  <Text style={[styles.insightValue, { color: colors.foreground }]}>{String(value)}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={[styles.emptyCopy, { color: colors.foregroundSecondary }]}>
-              the first few conversations will start shaping this.
-            </Text>
-          )}
+          <Text style={[styles.scenarioEyebrow, { color: colors.foregroundSecondary }]}>imagine this</Text>
+          <Text style={[styles.scenarioCopy, { color: colors.foreground }]}>
+            you’re excited about something{'\n'}
+            and the person you care about barely reacts{'\n\n'}
+            what stays with you more?
+          </Text>
+          <View style={styles.scenarioActions}>
+            <Button onPress={() => startConversation('relationship')} title="respond" />
+          </View>
+          <TouchableOpacity activeOpacity={0.8} onPress={() => startConversation()} style={styles.secondaryCta}>
+            <Text style={[styles.secondaryCtaText, { color: colors.foregroundSecondary }]}>or just start talking</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View
+          style={[
+            styles.signalCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.signalTitle, { color: colors.foreground }]}>
+            {profile?.match_ready
+              ? 'i might know someone who makes sense for you.'
+              : 'i think i’m starting to understand you.'}
+          </Text>
+          <Text style={[styles.signalCopy, { color: colors.foregroundSecondary }]}>
+            {profile?.match_ready
+              ? 'keep going, or step into matches when you feel ready.'
+              : 'the more you respond, the more signal candor can hold onto.'}
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -217,12 +178,27 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: 110,
   },
-  emptyCopy: {
-    ...Typography.body,
+  entryCard: {
+    borderRadius: Radius['2xl'],
+    borderWidth: 1,
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 220,
+    padding: Spacing.lg,
   },
-  eyebrow: {
-    ...Typography.caption,
-    marginBottom: Spacing.sm,
+  entryDescription: {
+    ...Typography.bodySmall,
+    marginTop: Spacing.xs,
+  },
+  entryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginTop: Spacing.xl,
+  },
+  entryTitle: {
+    ...Typography.body,
+    fontFamily: 'DMSans_500Medium',
     textTransform: 'lowercase',
   },
   header: {
@@ -231,75 +207,68 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
   },
-  heroActions: {
-    marginTop: Spacing.xl,
-  },
   heroCard: {
-    borderColor: 'transparent',
     borderRadius: Radius['3xl'],
     borderWidth: 1,
     marginBottom: Spacing.lg,
     padding: Spacing.xl,
   },
-  heroCopy: {
+  heroEyebrow: {
+    ...Typography.caption,
+    marginBottom: Spacing.sm,
+    textTransform: 'lowercase',
+  },
+  heroSubtitle: {
     ...Typography.body,
-    maxWidth: 460,
+    marginTop: Spacing.sm,
   },
   heroTitle: {
     ...Typography.heading,
     fontFamily: 'DMSans_400Regular',
-    fontSize: 34,
-    lineHeight: 38,
-    marginBottom: Spacing.md,
-    maxWidth: 520,
+    fontSize: 38,
+    lineHeight: 42,
+    maxWidth: 560,
   },
-  insightCard: {
+  scenarioActions: {
+    marginTop: Spacing.lg,
+    maxWidth: 220,
+  },
+  scenarioCard: {
+    borderRadius: Radius['3xl'],
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+    padding: Spacing.xl,
+  },
+  scenarioCopy: {
+    ...Typography.body,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 20,
+    lineHeight: 30,
+  },
+  scenarioEyebrow: {
+    ...Typography.caption,
+    letterSpacing: 1.4,
+    marginBottom: Spacing.md,
+    textTransform: 'lowercase',
+  },
+  secondaryCta: {
+    marginTop: Spacing.lg,
+  },
+  secondaryCtaText: {
+    ...Typography.bodySmall,
+    textTransform: 'lowercase',
+  },
+  signalCard: {
     borderRadius: Radius['3xl'],
     borderWidth: 1,
     padding: Spacing.xl,
   },
-  insightLabel: {
-    ...Typography.bodySmall,
-    textTransform: 'lowercase',
-  },
-  insightList: {
-    gap: Spacing.sm,
-  },
-  insightRow: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: Spacing.sm,
-  },
-  insightValue: {
+  signalCopy: {
     ...Typography.body,
-    fontFamily: 'DMSans_500Medium',
-    marginTop: 2,
-    textTransform: 'lowercase',
+    marginTop: Spacing.sm,
   },
-  quickLink: {
-    borderRadius: Radius['2xl'],
-    borderWidth: 1,
-    flex: 1,
-    minWidth: 180,
-    padding: Spacing.lg,
-  },
-  quickLinkCaption: {
-    ...Typography.bodySmall,
-    marginTop: Spacing.xs,
-  },
-  quickLinkTitle: {
-    ...Typography.body,
-    fontFamily: 'DMSans_500Medium',
-    textTransform: 'lowercase',
-  },
-  quickLinks: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  sectionTitle: {
+  signalTitle: {
     ...Typography.subheading,
-    marginBottom: Spacing.md,
     textTransform: 'lowercase',
   },
   wordmark: {

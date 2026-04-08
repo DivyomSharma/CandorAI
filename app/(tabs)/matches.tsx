@@ -123,7 +123,7 @@ export default function MatchesScreen() {
             <BrandImage style={styles.wordmark} variant="wordmark" />
             <Text style={[styles.title, { color: colors.foreground }]}>matches</Text>
             <Text style={[styles.subtitle, { color: colors.foregroundSecondary }]}>
-              when candor finds a strong enough signal, the connection appears here.
+              connections appear when there’s enough signal.
             </Text>
           </View>
         }
@@ -135,9 +135,9 @@ export default function MatchesScreen() {
             ]}
           >
             <BrandImage style={styles.emptyMark} variant="mark" />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>nothing unlocked yet</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>still getting to know you</Text>
             <Text style={[styles.emptyCopy, { color: colors.foregroundSecondary }]}>
-              keep talking with candor. the app needs more signal before it lets someone through.
+              connections appear when there’s enough signal.
             </Text>
             <View style={styles.emptyAction}>
               <Button onPress={() => router.push('/(tabs)')} title="go to home" variant="secondary" />

@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: Radius['3xl'],
     borderWidth: 1,
-    maxWidth: 760,
+    maxWidth: 640,
     padding: Spacing.xl,
     width: '100%',
   },
