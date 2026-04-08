@@ -7,6 +7,9 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BrandBackdrop } from '@/components/BrandBackdrop';
+import { BrandImage } from '@/components/BrandImage';
+import { Button } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/services/supabase';
@@ -76,11 +79,15 @@ export default function ChatScreen() {
         { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
       ]}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.background }]}>
-        <Text style={[styles.avatarText, { color: colors.foreground }]}>
-          {item.type === 'ai' ? '\u2726' : '\u25CB'}
-        </Text>
-      </View>
+      {item.type === 'ai' ? (
+        <View style={[styles.avatar, { backgroundColor: colors.surfaceSecondary }]}>
+          <BrandImage resizeMode="contain" style={styles.avatarMark} variant="mark" />
+        </View>
+      ) : (
+        <View style={[styles.avatar, { backgroundColor: colors.background }]}>
+          <Text style={[styles.avatarText, { color: colors.foreground }]}>{"\u25CB"}</Text>
+        </View>
+      )}
       <View style={styles.conversationInfo}>
         <Text style={[styles.conversationTitle, { color: colors.foreground }]}>
           {item.type === 'ai' ? 'candor' : 'someone who understands'}
@@ -100,14 +107,24 @@ export default function ChatScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <BrandBackdrop />
       <FlatList
         contentContainerStyle={styles.list}
         data={conversations}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <BrandImage resizeMode="contain" style={styles.wordmark} variant="wordmark" />
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>conversation threads</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
+              start with candor or return to something unfinished.
+            </Text>
+          </View>
+        }
         renderItem={renderConversation}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyEmoji, { color: colors.foregroundSecondary }]}>{"\u2726"}</Text>
+            <BrandImage resizeMode="contain" style={styles.emptyMark} variant="mark" />
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>no conversations yet</Text>
             <Text style={[styles.emptySubtitle, { color: colors.foregroundSecondary }]}>
               start with candor and let the quiet build
@@ -115,13 +132,9 @@ export default function ChatScreen() {
           </View>
         }
       />
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={startNewAIChat}
-        style={[styles.fab, Shadows.md, { backgroundColor: colors.primary }]}
-      >
-        <Text style={[styles.fabText, { color: colors.primaryForeground }]}>+</Text>
-      </TouchableOpacity>
+      <View style={styles.ctaBar}>
+        <Button onPress={startNewAIChat} title="start a new chat" />
+      </View>
     </View>
   );
 }
@@ -129,14 +142,18 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
-    borderRadius: 24,
-    height: 48,
+    borderRadius: 28,
+    height: 56,
     justifyContent: 'center',
     marginRight: Spacing.md,
-    width: 48,
+    width: 56,
+  },
+  avatarMark: {
+    height: 28,
+    width: 28,
   },
   avatarText: {
-    fontSize: 24,
+    fontSize: 20,
   },
   container: {
     flex: 1,
@@ -146,9 +163,9 @@ const styles = StyleSheet.create({
   },
   conversationItem: {
     alignItems: 'center',
-    borderRadius: Radius['2xl'],
+    borderRadius: Radius['3xl'],
     flexDirection: 'row',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
     padding: Spacing.lg,
   },
   conversationPreview: {
@@ -161,15 +178,23 @@ const styles = StyleSheet.create({
   conversationTitle: {
     ...Typography.body,
     fontFamily: 'DMSans_500Medium',
+    textTransform: 'lowercase',
+  },
+  ctaBar: {
+    bottom: 20,
+    left: Spacing.lg,
+    position: 'absolute',
+    right: Spacing.lg,
   },
   empty: {
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxl * 2,
+    paddingTop: Spacing.xxl,
   },
-  emptyEmoji: {
-    fontSize: 56,
+  emptyMark: {
+    height: 72,
     marginBottom: Spacing.md,
+    width: 72,
   },
   emptySubtitle: {
     ...Typography.body,
@@ -179,23 +204,28 @@ const styles = StyleSheet.create({
     ...Typography.subheading,
     marginBottom: Spacing.xs,
   },
-  fab: {
+  header: {
     alignItems: 'center',
-    borderRadius: 32,
-    bottom: 24,
-    height: 64,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 24,
-    width: 64,
-  },
-  fabText: {
-    fontFamily: 'DMSans_300Light',
-    fontSize: 32,
-    marginTop: -2,
+    marginBottom: Spacing.xl,
+    paddingTop: Spacing.md,
   },
   list: {
-    padding: Spacing.md,
-    paddingBottom: 100,
+    padding: Spacing.lg,
+    paddingBottom: 120,
+  },
+  sectionSubtitle: {
+    ...Typography.bodySmall,
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    ...Typography.subheading,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+    textTransform: 'lowercase',
+  },
+  wordmark: {
+    height: 52,
+    marginBottom: Spacing.lg,
+    width: 180,
   },
 });

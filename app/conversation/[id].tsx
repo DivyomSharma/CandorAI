@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { BrandBackdrop } from '@/components/BrandBackdrop';
 import { ChatBubble } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -301,12 +302,23 @@ export default function ConversationScreen() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleComposerKeyPress = (event: { nativeEvent?: { key?: string; shiftKey?: boolean } }) => {
+    if (
+      Platform.OS === 'web' &&
+      event.nativeEvent?.key === 'Enter' &&
+      !event.nativeEvent?.shiftKey
+    ) {
+      sendMessage();
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
+      <BrandBackdrop />
       <FlatList
         ref={flatListRef}
         contentContainerStyle={styles.messageList}
@@ -345,17 +357,26 @@ export default function ConversationScreen() {
         style={[
           styles.inputRow,
           Shadows.soft,
-          { backgroundColor: colors.surface, borderTopColor: colors.border },
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderWidth: 1,
+          },
         ]}
       >
         <TextInput
+          blurOnSubmit={false}
           editable={!sending}
           maxLength={2000}
           multiline
           onChangeText={setInput}
+          onKeyPress={handleComposerKeyPress}
           placeholder="say something honest..."
           placeholderTextColor={withAlpha(colors.foregroundSecondary, 0.5)}
-          style={[styles.textInput, { backgroundColor: colors.background, color: colors.foreground }]}
+          style={[
+            styles.textInput,
+            { backgroundColor: colors.surfaceSecondary, color: colors.foreground },
+          ]}
           value={input}
         />
         <TouchableOpacity
@@ -405,23 +426,26 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     alignItems: 'flex-end',
-    borderTopWidth: 1,
+    borderRadius: Radius['3xl'],
     flexDirection: 'row',
     gap: Spacing.sm,
+    margin: Spacing.md,
+    marginTop: Spacing.sm,
     padding: Spacing.sm,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.sm,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.md : Spacing.sm,
   },
   messageList: {
     flexGrow: 1,
     justifyContent: 'flex-end',
+    paddingTop: Spacing.md,
     paddingVertical: Spacing.md,
   },
   sendButton: {
     alignItems: 'center',
-    borderRadius: 22,
-    height: 44,
+    borderRadius: 24,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
   },
   sendDisabled: {
     opacity: 0.4,
@@ -432,11 +456,11 @@ const styles = StyleSheet.create({
   },
   textInput: {
     ...Typography.body,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     flex: 1,
-    maxHeight: 100,
+    maxHeight: 120,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
   typingBubble: {
     borderBottomLeftRadius: Radius.sm,

@@ -34,7 +34,7 @@ export function Button({
 
   const variantStyles: Record<string, ViewStyle> = {
     primary: { backgroundColor: colors.primary, ...Shadows.soft },
-    secondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
+    secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
     ghost: { backgroundColor: 'transparent' },
   };
 
@@ -78,17 +78,19 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 54,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
   text: {
     ...Typography.button,
+    fontFamily: 'DMSans_500Medium',
+    textTransform: 'lowercase',
   },
 });

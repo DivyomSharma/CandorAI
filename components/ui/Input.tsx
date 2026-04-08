@@ -17,6 +17,7 @@ interface InputProps extends TextInputProps {
 export function Input({ label, error, style, ...props }: InputProps) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
+  const isMultiline = !!props.multiline;
 
   return (
     <View style={styles.container}>
@@ -36,6 +37,8 @@ export function Input({ label, error, style, ...props }: InputProps) {
               ? '#ef4444'
               : colors.border,
             color: colors.foreground,
+            borderRadius: isMultiline ? Radius['2xl'] : Radius.full,
+            minHeight: isMultiline ? 112 : 56,
           },
           style,
         ]}
@@ -56,14 +59,14 @@ const styles = StyleSheet.create({
   label: {
     ...Typography.bodySmall,
     marginBottom: Spacing.xs,
-    fontWeight: '500',
+    fontFamily: 'DMSans_400Regular',
+    textTransform: 'lowercase',
   },
   input: {
     ...Typography.body,
-    borderWidth: 1.5,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.lg,
   },
   errorText: {
     ...Typography.caption,

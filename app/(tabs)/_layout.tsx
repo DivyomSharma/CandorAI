@@ -16,6 +16,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         headerShadowVisible: false,
         headerStyle: {
           backgroundColor: colors.background,
@@ -30,12 +31,14 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontFamily: 'DMSans_400Regular',
           fontSize: 11,
+          textTransform: 'lowercase',
         },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 56,
-          paddingBottom: 4,
+          height: 72,
+          paddingBottom: 8,
+          paddingTop: 6,
         },
       }}
     >

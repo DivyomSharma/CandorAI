@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BrandBackdrop } from '@/components/BrandBackdrop';
+import { BrandImage } from '@/components/BrandImage';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/services/supabase';
@@ -52,7 +54,9 @@ function GlowingCircle() {
           { backgroundColor: colors.bubbleUser, transform: [{ scale }] },
         ]}
       >
-        <View style={[styles.glowInner, { backgroundColor: colors.accent }]} />
+        <View style={[styles.glowInner, { backgroundColor: colors.surface }]}>
+          <BrandImage resizeMode="contain" style={styles.glowMark} variant="mark" />
+        </View>
       </Animated.View>
     </View>
   );
@@ -159,26 +163,37 @@ export default function MatchesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <BrandBackdrop />
       <FlatList
         contentContainerStyle={styles.list}
         data={matches}
         keyExtractor={(item) => item.id}
         renderItem={renderMatch}
         ListHeaderComponent={
-          matches.length > 0 ? (
-            <View style={styles.header}>
+          <View style={styles.header}>
+            <BrandImage resizeMode="contain" style={styles.wordmark} variant="wordmark" />
+            {matches.length > 0 ? (
+              <>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
                 you've unlocked someone who understands you
               </Text>
               <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
                 open the thread when you're ready
               </Text>
-            </View>
-          ) : null
+              </>
+            ) : (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>matches appear here</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
+                  keep talking and candor will let the right person through.
+                </Text>
+              </>
+            )}
+          </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyEmoji, { color: colors.foregroundSecondary }]}>{"\u2726"}</Text>
+            <BrandImage resizeMode="contain" style={styles.emptyMark} variant="mark" />
             <Text style={[styles.emptySubtitle, { color: colors.foregroundSecondary }]}>
               no one has unlocked yet. keep talking.
             </Text>
@@ -199,11 +214,12 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
-    paddingTop: Spacing.xxl * 2,
+    paddingTop: Spacing.xxl,
   },
-  emptyEmoji: {
-    fontSize: 48,
+  emptyMark: {
+    height: 72,
     marginBottom: Spacing.xl,
+    width: 72,
   },
   emptySubtitle: {
     ...Typography.body,
@@ -217,9 +233,15 @@ const styles = StyleSheet.create({
     width: 80,
   },
   glowInner: {
-    borderRadius: 16,
-    height: 32,
-    width: 32,
+    alignItems: 'center',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  glowMark: {
+    height: 24,
+    width: 24,
   },
   glowOuter: {
     alignItems: 'center',
@@ -231,13 +253,14 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
+    paddingTop: Spacing.md,
   },
   list: {
     padding: Spacing.xl,
   },
   matchCard: {
     alignItems: 'center',
-    borderRadius: Radius['2xl'],
+    borderRadius: Radius['3xl'],
     marginBottom: Spacing.md,
     padding: Spacing.xl,
   },
@@ -262,5 +285,11 @@ const styles = StyleSheet.create({
     ...Typography.subheading,
     marginBottom: Spacing.xs,
     textAlign: 'center',
+    textTransform: 'lowercase',
+  },
+  wordmark: {
+    height: 52,
+    marginBottom: Spacing.lg,
+    width: 180,
   },
 });

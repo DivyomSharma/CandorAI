@@ -7,7 +7,10 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { BrandBackdrop } from '@/components/BrandBackdrop';
+import { BrandImage } from '@/components/BrandImage';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { Button } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/services/supabase';
@@ -96,103 +99,109 @@ export default function HomeScreen() {
     .slice(0, 5);
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <View style={styles.greeting}>
-        <View style={[styles.sparkle, { backgroundColor: colors.bubbleUser }]}>
-          <Text style={[styles.sparkleText, { color: colors.accent }]}>{"\u2726"}</Text>
-        </View>
-        <Text style={[styles.greetingText, { color: colors.foreground }]}>
-          hi{profile?.display_name ? `, ${profile.display_name.toLowerCase()}` : ''}.
-        </Text>
-        <Text style={[styles.greetingSubtext, { color: colors.foregroundSecondary }]}>
-          {getProgressText()}
-        </Text>
-      </View>
-
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={startAIConversation}
-        style={[
-          styles.card,
-          Shadows.md,
-          { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
-        ]}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <BrandBackdrop />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        style={styles.container}
       >
-        <View style={[styles.iconCircle, { backgroundColor: colors.background }]}>
-          <Text style={[styles.cardEmoji, { color: colors.foreground }]}>{"\u2726"}</Text>
+        <View style={styles.header}>
+          <BrandImage style={styles.wordmark} variant="wordmark" />
+          <ThemeSelector />
         </View>
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>talk to candor</Text>
-        <Text style={[styles.cardDescription, { color: colors.foregroundSecondary }]}>
-          a quiet space for honest conversation.
-        </Text>
-        <View style={[styles.cardAction, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.cardActionText, { color: colors.primaryForeground }]}>start chatting</Text>
-        </View>
-      </TouchableOpacity>
 
-      {displayTraits.length > 0 && (
-        <View
+        <View style={styles.hero}>
+          <Text style={[styles.heroTitle, { color: colors.foreground }]}>
+            hi{profile?.display_name ? `, ${profile.display_name.toLowerCase()}` : ''}.
+          </Text>
+          <Text style={[styles.heroSubtitle, { color: colors.foregroundSecondary }]}>
+            {getProgressText()}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={startAIConversation}
           style={[
             styles.card,
-            Shadows.sm,
-            { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+            Shadows.soft,
+            { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>what candor notices</Text>
-          <View style={styles.traitsGrid}>
-            {displayTraits.map(([trait, value]) => (
-              <View
-                key={trait}
-                style={[styles.traitChip, { borderBottomColor: colors.border }]}
-              >
-                <Text style={[styles.traitName, { color: colors.foregroundSecondary }]}>
-                  {trait.replace(/_/g, ' ')}
-                </Text>
-                <Text style={[styles.traitValue, { color: colors.foreground }]}>
-                  {value as string}
-                </Text>
-              </View>
-            ))}
+          <View style={styles.cardHeader}>
+            <BrandImage style={styles.cardMark} variant="mark" />
+            <View style={styles.cardCopy}>
+              <Text style={[styles.cardTitle, { color: colors.foreground }]}>talk to candor</Text>
+              <Text style={[styles.cardDescription, { color: colors.foregroundSecondary }]}>
+                a quiet space for honest conversation.
+              </Text>
+            </View>
           </View>
-        </View>
-      )}
 
-      <View style={styles.footer}>
-        <ThemeSelector />
-      </View>
-    </ScrollView>
+          <Button onPress={startAIConversation} title="start chatting" />
+        </TouchableOpacity>
+
+        {displayTraits.length > 0 && (
+          <View
+            style={[
+              styles.card,
+              Shadows.soft,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>what candor notices</Text>
+            <View style={styles.traitsGrid}>
+              {displayTraits.map(([trait, value]) => (
+                <View
+                  key={trait}
+                  style={[styles.traitChip, { borderBottomColor: colors.border }]}
+                >
+                  <Text style={[styles.traitName, { color: colors.foregroundSecondary }]}>
+                    {trait.replace(/_/g, ' ')}
+                  </Text>
+                  <Text style={[styles.traitValue, { color: colors.foreground }]}>
+                    {value as string}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Radius.xl,
+    borderRadius: Radius['3xl'],
+    borderWidth: 1,
     marginBottom: Spacing.lg,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
   },
-  cardAction: {
-    alignSelf: 'flex-start',
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-  },
-  cardActionText: {
-    ...Typography.bodySmall,
-    fontFamily: 'DMSans_500Medium',
+  cardCopy: {
+    flex: 1,
+    justifyContent: 'center',
   },
   cardDescription: {
-    ...Typography.body,
-    marginBottom: Spacing.lg,
+    ...Typography.bodySmall,
+    lineHeight: 24,
   },
-  cardEmoji: {
-    fontSize: 24,
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  cardMark: {
+    borderRadius: 24,
+    height: 72,
+    width: 72,
   },
   cardTitle: {
     ...Typography.subheading,
     marginBottom: Spacing.xs,
+    textTransform: 'lowercase',
   },
   container: {
     flex: 1,
@@ -201,50 +210,34 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
-  footer: {
+  header: {
     alignItems: 'center',
-    marginTop: Spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 56,
   },
-  greeting: {
+  hero: {
     marginBottom: Spacing.xl,
   },
-  greetingSubtext: {
+  heroSubtitle: {
     ...Typography.body,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
   },
-  greetingText: {
+  heroTitle: {
     ...Typography.heading,
-  },
-  iconCircle: {
-    alignItems: 'center',
-    borderRadius: 24,
-    height: 48,
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-    width: 48,
+    fontSize: 36,
   },
   sectionTitle: {
     ...Typography.subheading,
     marginBottom: Spacing.md,
     textTransform: 'lowercase',
   },
-  sparkle: {
-    alignItems: 'center',
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-    width: 44,
-  },
-  sparkleText: {
-    fontSize: 20,
-  },
   traitChip: {
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.sm,
   },
   traitName: {
     ...Typography.bodySmall,
@@ -257,5 +250,9 @@ const styles = StyleSheet.create({
   },
   traitsGrid: {
     gap: Spacing.md,
+  },
+  wordmark: {
+    height: 56,
+    width: 200,
   },
 });

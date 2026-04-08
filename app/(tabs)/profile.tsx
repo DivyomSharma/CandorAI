@@ -7,6 +7,8 @@ import {
   View,
 } from 'react-native';
 import { Button, Input } from '@/components/ui';
+import { BrandBackdrop } from '@/components/BrandBackdrop';
+import { BrandImage } from '@/components/BrandImage';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/services/supabase';
@@ -72,81 +74,114 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <View style={styles.header}>
-        <View style={[styles.avatarCircle, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.avatarEmoji, { color: colors.foreground }]}>{"\u2727"}</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <BrandBackdrop />
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        <View style={styles.header}>
+          <BrandImage resizeMode="contain" style={styles.wordmark} variant="wordmark" />
+          <View style={[styles.avatarCircle, { backgroundColor: colors.surface }]}>
+            <BrandImage resizeMode="contain" style={styles.avatarMark} variant="mark" />
+          </View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>your profile</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.foregroundSecondary }]}>
+            keep this simple. candor learns more from conversation than performance.
+          </Text>
+          <Text style={[styles.email, { color: colors.foregroundSecondary }]}>{user?.email ?? ''}</Text>
         </View>
-        <Text style={[styles.email, { color: colors.foregroundSecondary }]}>{user?.email ?? ''}</Text>
-      </View>
 
-      <View
-        style={[
-          styles.card,
-          Shadows.md,
-          { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
-        ]}
-      >
-        <Input
-          label="display name"
-          onChangeText={(text) => setProfile((prev) => ({ ...prev, display_name: text }))}
-          placeholder="how should we call you?"
-          value={profile.display_name}
-        />
-        <Input
-          label="bio"
-          multiline
-          numberOfLines={3}
-          onChangeText={(text) => setProfile((prev) => ({ ...prev, bio: text }))}
-          placeholder="tell us a little about yourself..."
-          style={{ minHeight: 80, textAlignVertical: 'top' }}
-          value={profile.bio}
-        />
-        <Button loading={saving} onPress={saveProfile} title="save" />
-      </View>
+        <View
+          style={[
+            styles.card,
+            Shadows.md,
+            { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+          ]}
+        >
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>tell candor who you are</Text>
+          <Input
+            label="display name"
+            onChangeText={(text) => setProfile((prev) => ({ ...prev, display_name: text }))}
+            placeholder="how should we call you?"
+            value={profile.display_name}
+          />
+          <Input
+            label="bio"
+            multiline
+            numberOfLines={3}
+            onChangeText={(text) => setProfile((prev) => ({ ...prev, bio: text }))}
+            placeholder="tell us a little about yourself..."
+            style={{ minHeight: 100, textAlignVertical: 'top' }}
+            value={profile.bio}
+          />
+          <Button loading={saving} onPress={saveProfile} title="save" />
+        </View>
 
-      <View style={styles.footer}>
-        <Button onPress={handleSignOut} title="sign out" variant="ghost" />
-      </View>
-    </ScrollView>
+        <View style={styles.footer}>
+          <Button onPress={handleSignOut} title="sign out" variant="secondary" />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   avatarCircle: {
     alignItems: 'center',
-    borderRadius: 40,
-    height: 80,
+    borderRadius: 48,
+    height: 96,
     justifyContent: 'center',
     marginBottom: Spacing.md,
-    width: 80,
+    width: 96,
+  },
+  avatarMark: {
+    height: 44,
+    width: 44,
   },
   avatarEmoji: {
     fontSize: 40,
   },
   card: {
-    borderRadius: Radius['2xl'],
+    borderRadius: Radius['3xl'],
     marginBottom: Spacing.lg,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
+  },
+  cardTitle: {
+    ...Typography.subheading,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+    textTransform: 'lowercase',
   },
   container: {
     flex: 1,
   },
   content: {
     padding: Spacing.lg,
+    paddingBottom: Spacing.xxl,
   },
   email: {
     ...Typography.bodySmall,
+    marginTop: Spacing.md,
   },
   footer: {
     alignItems: 'center',
-    marginTop: Spacing.md,
   },
   header: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
+  },
+  sectionSubtitle: {
+    ...Typography.bodySmall,
+    maxWidth: 320,
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    ...Typography.subheading,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+    textTransform: 'lowercase',
+  },
+  wordmark: {
+    height: 56,
+    marginBottom: Spacing.xl,
+    width: 190,
   },
 });
